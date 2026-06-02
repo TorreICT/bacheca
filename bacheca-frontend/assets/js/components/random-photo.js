@@ -45,7 +45,6 @@
 
         content.appendChild(grid);
 
-        panel.setAttribute("title", "Foto casuale Torrescalla");
         dom.removeClass(panel, "is-hidden");
     }
 
