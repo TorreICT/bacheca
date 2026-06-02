@@ -19,7 +19,6 @@
     function render(data, error) {
         var panel = dom.byId("random-photo-panel");
         var content = dom.byId("random-photo-content");
-        var title;
         var grid;
         var image;
         var photos;
@@ -33,7 +32,6 @@
             return;
         }
 
-        title = dom.create("div", "random-photo-title", "Foto casuali del giorno");
         grid = dom.create("div", data.photos.length > 1 ? "random-photo-grid" : "random-photo-grid random-photo-grid-single");
         photos = data.photos.length > 2 ? data.photos.slice(0, 2) : data.photos;
 
@@ -45,10 +43,9 @@
             grid.appendChild(image);
         }
 
-        content.appendChild(title);
         content.appendChild(grid);
 
-        panel.setAttribute("title", "Foto casuali del giorno");
+        panel.setAttribute("title", "Foto casuale Torrescalla");
         dom.removeClass(panel, "is-hidden");
     }
 
