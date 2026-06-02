@@ -1,10 +1,10 @@
 # Bacheca Backend
 
-FastAPI backend for the Torrescalla Bacheca dashboard.
+FastAPI app for the Torrescalla dashboard. This repo is now the production
+runtime: it serves the static frontend from `bacheca-frontend/` and all
+dashboard data from same-origin `/api/...` endpoints on one port.
 
-This service replaces the old Node static server/proxy. It serves the existing `../bacheca` frontend and all `/api/...` endpoints from one port.
-
-Photo thumbnails are generated with Pillow inside Python. ImageMagick is not required for this backend.
+The old Node static server and Node proxy are retired. Port `8081` is not used.
 
 ## Setup
 
@@ -16,9 +16,11 @@ pip install -r requirements.txt
 cp .env.EXAMPLE .env
 ```
 
-Edit `.env` and keep the same Google/MyCollege/FOTO settings used by the old dashboard.
+Edit `bacheca-backend/.env`. This is the only runtime env file used by the
+backend. The frontend copy in `bacheca-frontend/` is static-only and does not
+have its own env, package, or startup scripts.
 
-## Run Locally
+## Run
 
 ```bash
 ./start-service.sh
@@ -34,6 +36,8 @@ Useful checks:
 
 ```text
 http://127.0.0.1:8080/health
+http://127.0.0.1:8080/
+http://127.0.0.1:8080/assets/js/config.js
 http://127.0.0.1:8080/api/pasti
 http://127.0.0.1:8080/api/menu?data=2026-05-29
 http://127.0.0.1:8080/api/calendar
@@ -41,13 +45,41 @@ http://127.0.0.1:8080/api/pizza-index
 http://127.0.0.1:8080/api/random-photo?data=2026-05-29
 ```
 
+## Configuration
+
+Main settings in `.env`:
+
+```env
+BACHECA_DASHBOARD_HOST=0.0.0.0
+BACHECA_DASHBOARD_PORT=8080
+BACHECA_STATIC_ROOT=bacheca-frontend
+MYCOLLEGE_MENU_URL=https://mycollegeapp.rui.it/jsonapi
+MYCOLLEGE_PASTI_URL=https://mycollegeapp.rui.it/jsonapi
+MYCOLLEGE_RESIDENCE=dG9ycmVzY2FsbGE-
+GOOGLE_CALENDAR_ID=eventi.torrescalla@fondazionerui.it
+```
+
+`GOOGLE_PRIVATE_KEY` should stay in `bacheca-backend/.env`, either as one line
+with escaped `\n` characters or as quoted PEM text.
+
 ## Photos
 
-The backend scans `BACHECA_PHOTO_ROOT`, usually `/mnt/foto`, for folders whose names start with the current year or previous year. It stores metadata in SQLite and preloads small JPEG thumbnails in the background.
+Mount the FOTO share on the VM, usually at `/mnt/foto`, and make it readable by
+the systemd user.
 
-The browser only receives thumbnail URLs. Original photos are never sent to the frontend.
+Example CIFS mount flow:
 
-Important settings:
+```bash
+sudo apt install cifs-utils
+sudo mkdir -p /mnt/foto
+sudo mount -t cifs //SERVER_IP/FOTO /mnt/foto -o ro,guest,iocharset=utf8
+```
+
+The backend scans year folders under `BACHECA_PHOTO_ROOT`, stores metadata in
+SQLite, and preloads small JPEG thumbnails with Pillow. The browser only
+receives thumbnail URLs; original photos are never sent to the Raspberry.
+
+Important photo settings:
 
 ```env
 BACHECA_PHOTO_ROOT=/mnt/foto
@@ -61,7 +93,8 @@ BACHECA_PHOTO_YEARS_BACK=1
 BACHECA_PHOTO_PRELOAD_BATCH=40
 ```
 
-If `/api/random-photo` returns `{ "available": false }`, the preloader may still be generating thumbnails. Check logs and the cache folder.
+If `/api/random-photo` returns `{ "available": false }`, the preloader may still
+be generating thumbnails. Check service logs and `.cache/`.
 
 ## Systemd
 
@@ -69,7 +102,7 @@ Example service:
 
 ```ini
 [Unit]
-Description=Torrescalla Bacheca Backend
+Description=Torrescalla Bacheca
 After=network-online.target
 Wants=network-online.target
 
@@ -85,10 +118,12 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-After changing `.env`, restart:
+After changing `.env`:
 
 ```bash
 sudo systemctl restart bacheca
 ```
 
-If the existing VM service still points to `bacheca/scripts/start-services.sh` or `bacheca/scripts/start-services.js`, those paths are compatibility launchers that start this backend.
+If an existing VM unit still calls `bacheca/scripts/start-services.sh` or
+`node bacheca/scripts/start-services.js`, those standalone frontend paths remain
+compatibility launchers and delegate to this backend.

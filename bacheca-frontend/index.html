@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Torrescalla Bacheca</title>
+    <link rel="icon" href="assets/img/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+    <div class="dashboard" id="dashboard">
+        <header class="dashboard-header">
+            <section class="panel hero-panel" aria-label="Ora, data e meteo">
+                <div class="hero-content">
+                    <div class="clock-panel" aria-label="Ora e data">
+                        <div class="clock-logo" aria-hidden="true">
+                            <img src="assets/img/torrescalla-mark.svg" alt="">
+                        </div>
+                        <div class="clock-copy">
+                            <div class="clock-row">
+                                <div class="clock-time" id="clock-time">--:--</div>
+                                <div class="clock-seconds" id="clock-seconds">--</div>
+                            </div>
+                            <div class="clock-date" id="clock-date">Caricamento data</div>
+                        </div>
+                        <div class="last-updated" id="last-updated">Aggiornamento in corso</div>
+                    </div>
+
+                    <div class="weather-panel" aria-label="Meteo">
+                        <div class="panel-heading weather-heading">
+                            <h2>Meteo</h2>
+                            <span>Milano</span>
+                        </div>
+                        <div class="weather-current" id="weather-current">
+                            <div class="empty-state">Caricamento meteo</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </header>
+
+        <main class="dashboard-main content-stack" aria-label="Previsioni">
+                <section class="panel forecast-panel" aria-label="Previsioni meteo">
+                    <div class="weather-forecast" id="weather-forecast">
+                        <div class="empty-state">Caricamento previsioni</div>
+                    </div>
+                </section>
+        </main>
+
+        <aside class="side-stack" aria-label="Compleanni, foto ed eventi">
+                <section class="panel birthdays-panel is-hidden" id="birthdays-panel" aria-label="Compleanni">
+                    <div class="birthday-content" id="birthdays-content"></div>
+                </section>
+
+                <section class="panel pizza-index-panel is-hidden" id="pizza-index-panel" aria-label="Pizza Index">
+                    <div class="pizza-index-content" id="pizza-index-content"></div>
+                </section>
+
+                <section class="panel random-photo-panel is-hidden" id="random-photo-panel" aria-label="Foto casuale">
+                    <div class="random-photo-content" id="random-photo-content"></div>
+                </section>
+
+                <section class="panel events-panel" aria-label="Eventi principali">
+                    <div class="panel-heading">
+                        <h2>Eventi</h2>
+                        <span>Prossimi giorni</span>
+                    </div>
+                    <div class="event-list" id="events-list">
+                        <div class="empty-state">Caricamento eventi</div>
+                    </div>
+                </section>
+        </aside>
+
+        <section class="panel meals-panel" aria-label="Menu del giorno">
+                <span class="visually-hidden" id="meals-status">Caricamento</span>
+
+                <div class="meals-grid">
+                    <article class="meal-block" aria-label="Pranzo">
+                        <div class="meal-header">
+                            <h3>Pranzo</h3>
+                        </div>
+                        <div class="stats-grid" id="stats-pranzo"></div>
+                        <div class="menu-list" id="menu-pranzo"></div>
+                    </article>
+
+                    <article class="meal-block" aria-label="Cena">
+                        <div class="meal-header">
+                            <h3>Cena</h3>
+                        </div>
+                        <div class="stats-grid" id="stats-cena"></div>
+                        <div class="menu-list" id="menu-cena"></div>
+                    </article>
+                </div>
+        </section>
+    </div>
+
+    <noscript>
+        <div class="noscript">Questa bacheca richiede JavaScript attivo.</div>
+    </noscript>
+
+    <script src="assets/js/config.js?v=fastapi-backend"></script>
+    <script src="assets/js/utils/dom.js"></script>
+    <script src="assets/js/utils/date.js"></script>
+    <script src="assets/js/utils/http.js"></script>
+    <script src="assets/js/services/meals.js"></script>
+    <script src="assets/js/services/menu.js"></script>
+    <script src="assets/js/services/events.js"></script>
+    <script src="assets/js/services/weather.js"></script>
+    <script src="assets/js/services/pizza-index.js"></script>
+    <script src="assets/js/services/random-photo.js"></script>
+    <script src="assets/js/components/clock.js"></script>
+    <script src="assets/js/components/weather.js"></script>
+    <script src="assets/js/components/meals.js"></script>
+    <script src="assets/js/components/events.js"></script>
+    <script src="assets/js/components/birthdays.js"></script>
+    <script src="assets/js/components/pizza-index.js"></script>
+    <script src="assets/js/components/random-photo.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script>
+        if (window.Bacheca && window.Bacheca.app) {
+            window.Bacheca.app.init();
+        }
+    </script>
+</body>
+</html>

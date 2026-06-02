@@ -6,8 +6,7 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 read_env() {
     key="$1"
     default_value="$2"
-    backend_env_file="$SCRIPT_DIR/.env"
-    frontend_env_file="$SCRIPT_DIR/../bacheca/.env"
+    env_file="$SCRIPT_DIR/.env"
 
     eval "existing_value=\${$key:-}"
     if [ -n "$existing_value" ]; then
@@ -15,15 +14,13 @@ read_env() {
         return
     fi
 
-    for env_file in "$backend_env_file" "$frontend_env_file"; do
-        if [ -f "$env_file" ]; then
-            value=$(grep -m 1 "^$key=" "$env_file" 2>/dev/null | sed "s/^$key=//; s/^['\"]//; s/['\"]$//" || true)
-            if [ -n "$value" ]; then
-                printf '%s' "$value"
-                return
-            fi
+    if [ -f "$env_file" ]; then
+        value=$(grep -m 1 "^$key=" "$env_file" 2>/dev/null | sed "s/^$key=//; s/^['\"]//; s/['\"]$//" || true)
+        if [ -n "$value" ]; then
+            printf '%s' "$value"
+            return
         fi
-    done
+    fi
 
     printf '%s' "$default_value"
 }

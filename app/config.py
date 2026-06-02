@@ -5,11 +5,9 @@ from dotenv import load_dotenv
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-REPO_DIR = BASE_DIR.parent
-BACHECA_DIR = REPO_DIR / "bacheca"
+FRONTEND_DIR = BASE_DIR / "bacheca-frontend"
 
 load_dotenv(BASE_DIR / ".env")
-load_dotenv(BACHECA_DIR / ".env")
 
 
 def get_bool(name, default=False):
@@ -37,7 +35,7 @@ class Settings:
     dashboard_host = os.getenv("BACHECA_DASHBOARD_HOST", "0.0.0.0")
     dashboard_port = get_int("BACHECA_DASHBOARD_PORT", 8080)
 
-    static_root = resolve_path("BACHECA_STATIC_ROOT", str(BACHECA_DIR))
+    static_root = resolve_path("BACHECA_STATIC_ROOT", str(FRONTEND_DIR))
 
     request_timeout = get_int("BACHECA_MENU_TIMEOUT_MS", 10000) / 1000.0
 
