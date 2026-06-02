@@ -21,8 +21,7 @@ Edit `.env` and keep the same Google/MyCollege/FOTO settings used by the old das
 ## Run Locally
 
 ```bash
-. .venv/bin/activate
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8080
+./start-service.sh
 ```
 
 Open:
@@ -78,7 +77,7 @@ Wants=network-online.target
 Type=simple
 User=admin-bacheca
 WorkingDirectory=/home/admin-bacheca/bacheca-backend
-ExecStart=/home/admin-bacheca/bacheca-backend/.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8080
+ExecStart=/home/admin-bacheca/bacheca-backend/start-service.sh
 Restart=always
 RestartSec=5
 
@@ -91,3 +90,5 @@ After changing `.env`, restart:
 ```bash
 sudo systemctl restart bacheca
 ```
+
+If the existing VM service still points to `bacheca/scripts/start-services.sh` or `bacheca/scripts/start-services.js`, those paths are compatibility launchers that start this backend.

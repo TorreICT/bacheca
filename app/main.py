@@ -105,6 +105,22 @@ def index():
     return FileResponse(str(index_path), media_type="text/html")
 
 
+@app.get("/assets/js/config.js")
+def frontend_config():
+    config_path = settings.static_root / "assets" / "js" / "config.js"
+    if not config_path.exists():
+        raise HTTPException(status_code=404, detail="Frontend config not found")
+    return FileResponse(
+        str(config_path),
+        media_type="application/javascript",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
+
+
 assets_path = settings.static_root / "assets"
 if assets_path.exists():
     app.mount("/assets", StaticFiles(directory=str(assets_path)), name="assets")
