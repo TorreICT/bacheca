@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local configuration
+.env
+.env.*
+!.env.EXAMPLE
+
+# Runtime cache and generated data
+.cache/
+*.sqlite
+*.sqlite3
+*.db
+
+# Logs
+*.log
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
