@@ -1,4 +1,4 @@
-# Bacheca Backend
+# Bacheca App
 
 FastAPI app for the Torrescalla dashboard. This repo is now the production
 runtime: it serves the static frontend from `bacheca-frontend/` and all
