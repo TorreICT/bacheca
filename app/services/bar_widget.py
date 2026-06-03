@@ -97,6 +97,11 @@ def default_state():
             "enabled": False,
             "competition": "SA",
         },
+        "basketball": {
+            "enabled": False,
+            "competition": "",
+            "season": "",
+        },
         "updatedAt": stamp,
     }
 
@@ -167,6 +172,11 @@ def normalize_state(raw):
         state["soccer"] = normalize_soccer(raw.get("soccer"))
     except Exception:
         state["soccer"] = normalize_soccer(None)
+
+    try:
+        state["basketball"] = normalize_basketball(raw.get("basketball"))
+    except Exception:
+        state["basketball"] = normalize_basketball(None)
 
     updated_at = raw.get("updatedAt")
     try:
@@ -275,6 +285,17 @@ def normalize_soccer(item):
     return {
         "enabled": bool(source.get("enabled")),
         "competition": competition[:16],
+    }
+
+
+def normalize_basketball(item):
+    source = item if isinstance(item, dict) else {}
+    competition = str(source.get("competition") or "").strip()
+    season = str(source.get("season") or "").strip()
+    return {
+        "enabled": bool(source.get("enabled")),
+        "competition": competition[:32],
+        "season": season[:16],
     }
 
 
@@ -392,6 +413,7 @@ async def public_state():
         "announcements": announcements,
         "countdown": active_countdown(state, current),
         "soccer": await public_soccer(state),
+        "basketball": await public_basketball(state),
         "updatedAt": state.get("updatedAt") or isoformat(current),
     }
     return response
@@ -420,6 +442,34 @@ async def public_soccer(state):
             "label": soccer_state.get("competition") or "Soccer",
             "items": [],
             "message": str(error) or "Soccer unavailable",
+        }
+
+
+async def public_basketball(state):
+    basketball_state = state.get("basketball") or {}
+    if not basketball_state.get("enabled"):
+        return {
+            "enabled": False,
+            "available": False,
+            "competition": basketball_state.get("competition") or "",
+            "season": basketball_state.get("season") or "",
+            "label": "",
+            "items": [],
+            "message": "Basketball disabled",
+        }
+    try:
+        from app.services import basketball
+
+        return await basketball.load_compact(basketball_state.get("competition") or "", basketball_state.get("season") or "")
+    except Exception as error:
+        return {
+            "enabled": True,
+            "available": False,
+            "competition": basketball_state.get("competition") or "",
+            "season": basketball_state.get("season") or "",
+            "label": basketball_state.get("competition") or "Basket",
+            "items": [],
+            "message": str(error) or "Basketball unavailable",
         }
 
 
@@ -577,5 +627,36 @@ def set_soccer_competition(competition):
         state["soccer"]["enabled"] = True
         state["soccer"]["competition"] = normalized["competition"]
         state["visible"] = True
+
+    return update_state(mutate)
+
+
+def set_basketball_enabled(enabled):
+    def mutate(state):
+        state["basketball"]["enabled"] = bool(enabled)
+        if enabled:
+            state["visible"] = True
+
+    return update_state(mutate)
+
+
+def set_basketball_competition(competition, season=None):
+    normalized = normalize_basketball({"enabled": True, "competition": competition, "season": season or ""})
+
+    def mutate(state):
+        state["basketball"]["enabled"] = True
+        state["basketball"]["competition"] = normalized["competition"]
+        if season is not None:
+            state["basketball"]["season"] = normalized["season"]
+        state["visible"] = True
+
+    return update_state(mutate)
+
+
+def set_basketball_season(season):
+    normalized = normalize_basketball({"season": season})
+
+    def mutate(state):
+        state["basketball"]["season"] = normalized["season"]
 
     return update_state(mutate)

@@ -10,6 +10,7 @@
         },
         refreshMs: 15 * 60 * 1000,
         barWidgetRefreshMs: 12 * 1000,
+        pizzaIndexRefreshMs: 30 * 1000,
         requestTimeoutMs: 8000,
         maxEvents: 5,
         maxEventsWithBirthday: 3,

@@ -13,7 +13,9 @@
     };
 
     function buildUrl() {
-        return (config.api && config.api.pizzaIndex) || "/api/pizza-index";
+        var url = (config.api && config.api.pizzaIndex) || "/api/pizza-index";
+        var separator = url.indexOf("?") === -1 ? "?" : "&";
+        return url + separator + "_=" + encodeURIComponent(String(new Date().getTime()));
     }
 
     function labelFor(level) {
