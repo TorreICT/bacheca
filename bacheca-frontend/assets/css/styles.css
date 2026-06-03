@@ -1159,7 +1159,7 @@ p {
 .bar-widget-soccer,
 .bar-widget-empty {
     min-width: 0;
-    padding: 9px 12px;
+    padding: 5px 8px;
     border-radius: 8px;
     background: rgba(0, 0, 0, 0.2);
     display: flex;
@@ -1180,7 +1180,7 @@ p {
 .bar-widget-label {
     flex: 0 0 auto;
     color: rgba(255, 255, 255, 0.78);
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 700;
     line-height: 1;
     text-transform: uppercase;
@@ -1191,7 +1191,7 @@ p {
 .bar-widget-countdown-value,
 .bar-widget-empty {
     color: #ffffff;
-    font-size: 21px;
+    font-size: 26px;
     font-weight: 700;
     line-height: 1.08;
     white-space: nowrap;
