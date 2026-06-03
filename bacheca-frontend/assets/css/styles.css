@@ -42,7 +42,7 @@ p {
 }
 
 .dashboard.has-bar-widget {
-    grid-template-rows: 150px 112px 68px minmax(0, 1fr);
+    grid-template-rows: 150px 112px 78px minmax(0, 1fr);
 }
 
 .dashboard-header,
@@ -237,7 +237,7 @@ p {
     grid-row: 3;
     min-width: 0;
     min-height: 0;
-    padding: 10px 14px;
+    padding: 12px 16px;
     overflow: hidden;
     background: #1565c0;
     display: flex;
