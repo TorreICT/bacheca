@@ -146,11 +146,12 @@ football-data token is configured, then caches the available list in
 local list that includes club competitions plus national-team competitions such
 as `WC` for FIFA World Cup and `EC` for European Championship.
 
-The bar soccer view uses a fixed 30-day window: up to 2 finished matches from
-the previous month and up to 2 upcoming matches from the next month. Team crests
-or flags are served through the same-origin `/api/soccer/badge` proxy and cached
-under `.cache/soccer-badges/`; the browser does not call football-data image
-URLs directly.
+The bar soccer view uses a fixed 30-day window and shows up to 4 matches:
+ideally 2 recent results and 2 upcoming fixtures. If one side has fewer than 2,
+the other side fills the remaining slots; if no matches are available, the bar
+shows a short empty message. Team crests or flags are served through the
+same-origin `/api/soccer/badge` proxy and cached under `.cache/soccer-badges/`;
+the browser does not call football-data image URLs directly.
 
 ## Photos
 

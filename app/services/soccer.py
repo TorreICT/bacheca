@@ -25,8 +25,9 @@ COMPETITIONS = {
 }
 COMPETITIONS_CACHE_KEY = "__competitions__"
 BAR_MATCH_WINDOW_DAYS = 30
-BAR_RESULT_LIMIT = 2
-BAR_FIXTURE_LIMIT = 4
+BAR_MATCH_TOTAL_LIMIT = 4
+BAR_RESULT_TARGET = 2
+BAR_FIXTURE_TARGET = 2
 BADGE_HOST = "crests.football-data.org"
 BADGE_MAX_BYTES = 1024 * 1024
 
@@ -100,10 +101,12 @@ def match_cache_key(code):
         normalize_competition(code)
         + ":bar:w"
         + str(BAR_MATCH_WINDOW_DAYS)
+        + ":t"
+        + str(BAR_MATCH_TOTAL_LIMIT)
         + ":r"
-        + str(BAR_RESULT_LIMIT)
+        + str(BAR_RESULT_TARGET)
         + ":f"
-        + str(BAR_FIXTURE_LIMIT)
+        + str(BAR_FIXTURE_TARGET)
     )
 
 
@@ -206,8 +209,7 @@ def normalize_matches(code, body):
     results.sort(key=lambda item: item["sortAt"], reverse=True)
     fixtures.sort(key=lambda item: item["sortAt"])
 
-    results = results[:BAR_RESULT_LIMIT]
-    fixtures = fixtures[:BAR_FIXTURE_LIMIT]
+    results, fixtures = select_balanced_matches(results, fixtures)
     items = results + fixtures
 
     for item in items:
@@ -223,6 +225,25 @@ def normalize_matches(code, body):
         "items": items,
         "updatedAt": bar_widget.isoformat(current),
     }
+
+
+def select_balanced_matches(results, fixtures):
+    result_limit = min(BAR_RESULT_TARGET, len(results))
+    fixture_limit = min(BAR_FIXTURE_TARGET, len(fixtures))
+
+    while result_limit + fixture_limit < BAR_MATCH_TOTAL_LIMIT:
+        if result_limit < BAR_RESULT_TARGET and fixture_limit < len(fixtures):
+            fixture_limit += 1
+        elif fixture_limit < BAR_FIXTURE_TARGET and result_limit < len(results):
+            result_limit += 1
+        elif fixture_limit < len(fixtures):
+            fixture_limit += 1
+        elif result_limit < len(results):
+            result_limit += 1
+        else:
+            break
+
+    return results[:result_limit], fixtures[:fixture_limit]
 
 
 def normalize_match(match, current):
