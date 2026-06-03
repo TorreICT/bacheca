@@ -34,7 +34,14 @@ async def deny(update):
         await update.callback_query.answer("Not authorized", show_alert=True)
         return
     if update.message:
-        await update.message.reply_text("This chat is not authorized to control the bacheca.")
+        await update.message.reply_text("This chat is not authorized to control the bacheca. Use /my_id to see the chat ID.")
+
+
+def chat_id_text(update):
+    chat = update.effective_chat
+    if not chat:
+        return "unknown"
+    return str(chat.id)
 
 
 def main_keyboard():
@@ -162,13 +169,45 @@ def status_text():
 def help_text():
     return "\n".join(
         [
-            "Use /panel for buttons.",
-            "/show and /hide toggle the bar.",
-            "/announce Text | 2026-06-03T22:00:00+02:00 creates a one-shot announcement starting now.",
-            "/countdown Label | 2026-06-03T20:00:00+02:00 sets a countdown.",
-            "/color blue or /color #1565C0 changes the color.",
-            "/soccer SA selects a competition. /soccer_on and /soccer_off toggle soccer.",
-            "Use /cancel to stop a guided flow.",
+            "Available commands:",
+            "/start - show this introduction",
+            "/panel - open the button panel",
+            "/my_id - show this chat ID",
+            "/show and /hide - toggle the bar",
+            "/announce Text | 2026-06-03T22:00:00+02:00 - one-shot announcement starting now",
+            "/countdown Label | 2026-06-03T20:00:00+02:00 - set a countdown",
+            "/color blue or /color #1565C0 - change the bar color",
+            "/soccer SA - select a competition",
+            "/soccer_on and /soccer_off - toggle soccer",
+            "/cancel - stop a guided flow",
+        ]
+    )
+
+
+def start_text(update):
+    return "\n".join(
+        [
+            "Welcome to the Torrescalla Bacheca bar controller.",
+            "This bot controls the compact dashboard bar: announcements, countdowns, colors, visibility, and soccer snippets.",
+            "Your chat ID: " + chat_id_text(update),
+            "",
+            status_text(),
+            "",
+            help_text(),
+        ]
+    )
+
+
+def unauthorized_start_text(update):
+    return "\n".join(
+        [
+            "Welcome to the Torrescalla Bacheca bar controller.",
+            "This chat is not authorized to control the dashboard yet.",
+            "Your chat ID: " + chat_id_text(update),
+            "Ask an administrator to add this ID to TELEGRAM_ALLOWED_CHAT_IDS.",
+            "",
+            "Available commands:",
+            "/my_id - show this chat ID",
         ]
     )
 
@@ -183,10 +222,24 @@ async def send_panel(update, text=None):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_authorized(update):
+        await update.message.reply_text(unauthorized_start_text(update))
+        return
+    context.user_data.pop(FLOW_KEY, None)
+    await update.message.reply_text(start_text(update), reply_markup=main_keyboard())
+
+
+async def panel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_authorized(update):
         await deny(update)
         return
     context.user_data.pop(FLOW_KEY, None)
     await send_panel(update)
+
+
+async def my_id_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = chat_id_text(update)
+    authorized = "yes" if is_authorized(update) else "no"
+    await update.message.reply_text("Chat ID: " + chat_id + "\nAuthorized: " + authorized)
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -515,7 +568,9 @@ def build_application():
         raise RuntimeError("TELEGRAM_ALLOWED_CHAT_IDS is required and must not be empty")
 
     app = Application.builder().token(token).build()
-    app.add_handler(CommandHandler(["start", "panel"], start))
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("panel", panel_command))
+    app.add_handler(CommandHandler("my_id", my_id_command))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("cancel", cancel))
     app.add_handler(CommandHandler("show", show_command))

@@ -89,16 +89,19 @@ TELEGRAM_ALLOWED_CHAT_IDS=123456789,-1001234567890
 `TELEGRAM_ALLOWED_CHAT_IDS` is a comma-separated allowlist. If it is empty, the
 bot refuses to start; chats not in the list cannot modify state.
 
-Use `/start` or `/panel` for the main inline-button panel. Buttons cover
-show/hide, announcement creation, countdowns, color presets/custom colors,
-soccer enable/disable, competition selection, and confirmation for destructive
-actions. `/cancel` stops a guided flow and `/help` shows shortcuts.
+Use `/start` for an introduction and `/panel` for the main inline-button panel.
+Buttons cover show/hide, announcement creation, countdowns, color
+presets/custom colors, soccer enable/disable, competition selection, and
+confirmation for destructive actions. `/my_id` shows the current chat ID and is
+the only command available to unauthorized chats. `/cancel` stops a guided flow
+and `/help` shows shortcuts.
 
 Raw command shortcuts:
 
 ```text
 /show
 /hide
+/my_id
 /announce Text | 2026-06-03T22:00:00+02:00
 /countdown Label | 2026-06-03T20:00:00+02:00
 /color blue
