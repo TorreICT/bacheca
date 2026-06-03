@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
-from app.services import calendar, mycollege, photos, pizza
+from app.services import bar_widget, calendar, mycollege, photos, pizza
 
 
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -94,6 +94,11 @@ def api_random_photo_image(photo_id: str):
     if not thumbnail:
         raise HTTPException(status_code=404, detail="Photo not found")
     return FileResponse(str(thumbnail), media_type="image/jpeg")
+
+
+@app.get("/api/bar-widget")
+async def api_bar_widget():
+    return await bar_widget.public_state()
 
 
 @app.get("/")

@@ -5,9 +5,11 @@
             menu: "/api/menu",
             calendar: "/api/calendar",
             pizzaIndex: "/api/pizza-index",
-            randomPhoto: "/api/random-photo"
+            randomPhoto: "/api/random-photo",
+            barWidget: "/api/bar-widget"
         },
         refreshMs: 15 * 60 * 1000,
+        barWidgetRefreshMs: 12 * 1000,
         requestTimeoutMs: 8000,
         maxEvents: 4,
         maxEventsWithBirthday: 3,

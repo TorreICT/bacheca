@@ -68,5 +68,17 @@ class Settings:
     photo_years_back = get_int("BACHECA_PHOTO_YEARS_BACK", 1)
     photo_preload_batch = get_int("BACHECA_PHOTO_PRELOAD_BATCH", 40)
 
+    timezone = os.getenv("BACHECA_TIMEZONE", "Europe/Rome")
+    bar_widget_state_path = resolve_path("BACHECA_BAR_WIDGET_STATE_PATH", ".cache/bar-widget-state.json")
+
+    soccer_provider = os.getenv("BACHECA_SOCCER_PROVIDER", "football-data")
+    soccer_api_token = os.getenv("BACHECA_SOCCER_API_TOKEN", "")
+    soccer_base_url = os.getenv("BACHECA_SOCCER_BASE_URL", "https://api.football-data.org/v4")
+    soccer_cache_path = resolve_path("BACHECA_SOCCER_CACHE_PATH", ".cache/soccer-cache.json")
+    soccer_cache_ttl_ms = get_int("BACHECA_SOCCER_CACHE_TTL_MS", 600000)
+    soccer_lookback_days = get_int("BACHECA_SOCCER_LOOKBACK_DAYS", 7)
+    soccer_lookahead_days = get_int("BACHECA_SOCCER_LOOKAHEAD_DAYS", 7)
+    soccer_max_items = get_int("BACHECA_SOCCER_MAX_ITEMS", 4)
+
 
 settings = Settings()

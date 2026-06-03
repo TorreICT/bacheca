@@ -2,12 +2,14 @@
     var Bacheca = window.Bacheca = window.Bacheca || {};
     var config = window.BachecaConfig;
     var refreshTimer = null;
+    var barWidgetTimer = null;
     var dateCheckTimer = null;
     var activeDataDate = null;
 
     function init() {
         Bacheca.components.clock.init();
         refreshAll();
+        startBarWidgetPoller();
         startDateWatcher();
 
         if (refreshTimer) {
@@ -21,6 +23,7 @@
         refreshMeals();
         refreshCalendar();
         refreshWeather();
+        refreshBarWidget();
         refreshPizzaIndex();
         refreshRandomPhoto();
         Bacheca.components.clock.setLastUpdated();
@@ -37,6 +40,13 @@
                 refreshAll();
             }
         }, 5000);
+    }
+
+    function startBarWidgetPoller() {
+        if (barWidgetTimer) {
+            window.clearInterval(barWidgetTimer);
+        }
+        barWidgetTimer = window.setInterval(refreshBarWidget, config.barWidgetRefreshMs || 12000);
     }
 
     function refreshMeals() {
@@ -96,6 +106,15 @@
         Bacheca.components.weather.setLoading();
         Bacheca.services.weather.load(function (error, weather) {
             Bacheca.components.weather.render(weather, error);
+        });
+    }
+
+    function refreshBarWidget() {
+        if (!Bacheca.services.barWidget || !Bacheca.components.barWidget) {
+            return;
+        }
+        Bacheca.services.barWidget.load(function (error, data) {
+            Bacheca.components.barWidget.render(data, error);
         });
     }
 
