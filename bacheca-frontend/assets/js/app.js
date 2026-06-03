@@ -12,6 +12,9 @@
     var latestMealErrors = [];
     var latestRandomPhotoAvailable = false;
     var photoFocusMode = false;
+    var randomPhotoLoading = false;
+    var menuSlotMarker = null;
+    var photoSlotMarker = null;
 
     function init() {
         Bacheca.components.clock.init();
@@ -111,8 +114,7 @@
             if (pending > 0) {
                 return;
             }
-            latestMealErrors = errors;
-            renderMeals(errors);
+            renderMealsOrLoadPhoto(errors);
         }
     }
 
@@ -125,9 +127,17 @@
             } else {
                 latestMenuData = response;
             }
-            latestMealErrors = errors;
-            renderMeals(errors);
+            renderMealsOrLoadPhoto(errors);
         });
+    }
+
+    function renderMealsOrLoadPhoto(errors) {
+        latestMealErrors = errors || [];
+        if (bothMenusUnavailable(latestMenuData) && !isRandomPhotoAvailable() && !randomPhotoLoading) {
+            refreshRandomPhoto();
+            return;
+        }
+        renderMeals(errors);
     }
 
     function renderMeals(errors) {
@@ -181,10 +191,15 @@
     }
 
     function refreshRandomPhoto() {
+        if (randomPhotoLoading) {
+            return;
+        }
+        randomPhotoLoading = true;
         if (!photoFocusMode) {
             Bacheca.components.randomPhoto.setLoading();
         }
         Bacheca.services.randomPhoto.load(function (error, photo) {
+            randomPhotoLoading = false;
             latestRandomPhotoAvailable = !error && !!(photo && photo.photos && photo.photos.length);
             Bacheca.components.randomPhoto.render(photo, error);
             if (latestMenuData) {
@@ -196,7 +211,7 @@
     }
 
     function shouldUsePhotoFocusMode() {
-        return latestRandomPhotoAvailable && bothMenusUnavailable(latestMenuData);
+        return isRandomPhotoAvailable() && bothMenusUnavailable(latestMenuData);
     }
 
     function bothMenusUnavailable(menu) {
@@ -212,6 +227,15 @@
 
     function mealMenuAvailable(meal) {
         return !!(meal && meal.available);
+    }
+
+    function isRandomPhotoAvailable() {
+        var photoPanel;
+        if (latestRandomPhotoAvailable) {
+            return true;
+        }
+        photoPanel = document.getElementById("random-photo-panel");
+        return !!(photoPanel && !hasClass(photoPanel, "is-hidden"));
     }
 
     function menuFallbackForError() {
@@ -246,26 +270,46 @@
             return;
         }
 
+        ensureLayoutMarkers(dashboard, sideStack, mealsPanel, photoPanel);
+
         if (desired) {
-            if (photoPanel.parentNode !== dashboard) {
-                dashboard.appendChild(photoPanel);
-            }
-            if (mealsPanel.parentNode !== sideStack) {
-                sideStack.insertBefore(mealsPanel, eventsPanel);
-            }
+            moveAfterMarker(photoPanel, menuSlotMarker);
+            moveAfterMarker(mealsPanel, photoSlotMarker);
             addClass(dashboard, "menu-photo-mode");
             photoFocusMode = true;
             return;
         }
 
         removeClass(dashboard, "menu-photo-mode");
-        if (photoPanel.parentNode !== sideStack) {
-            sideStack.insertBefore(photoPanel, eventsPanel);
-        }
-        if (mealsPanel.parentNode !== dashboard) {
-            dashboard.appendChild(mealsPanel);
-        }
+        moveAfterMarker(photoPanel, photoSlotMarker);
+        moveAfterMarker(mealsPanel, menuSlotMarker);
         photoFocusMode = false;
+    }
+
+    function ensureLayoutMarkers(dashboard, sideStack, mealsPanel, photoPanel) {
+        if (!menuSlotMarker && mealsPanel && mealsPanel.parentNode) {
+            menuSlotMarker = document.createComment("bacheca-menu-slot");
+            mealsPanel.parentNode.insertBefore(menuSlotMarker, mealsPanel);
+        }
+        if (!photoSlotMarker && photoPanel && photoPanel.parentNode) {
+            photoSlotMarker = document.createComment("bacheca-photo-slot");
+            photoPanel.parentNode.insertBefore(photoSlotMarker, photoPanel);
+        }
+        if (menuSlotMarker && !menuSlotMarker.parentNode && dashboard) {
+            dashboard.appendChild(menuSlotMarker);
+        }
+        if (photoSlotMarker && !photoSlotMarker.parentNode && sideStack) {
+            sideStack.insertBefore(photoSlotMarker, sideStack.firstChild);
+        }
+    }
+
+    function moveAfterMarker(element, marker) {
+        var parent = marker && marker.parentNode;
+        var next = marker ? marker.nextSibling : null;
+        if (!element || !parent || next === element) {
+            return;
+        }
+        parent.insertBefore(element, next);
     }
 
     function addClass(element, className) {
@@ -278,6 +322,13 @@
         if (Bacheca.utils.dom && Bacheca.utils.dom.removeClass) {
             Bacheca.utils.dom.removeClass(element, className);
         }
+    }
+
+    function hasClass(element, className) {
+        if (Bacheca.utils.dom && Bacheca.utils.dom.hasClass) {
+            return Bacheca.utils.dom.hasClass(element, className);
+        }
+        return element && (" " + element.className + " ").indexOf(" " + className + " ") !== -1;
     }
 
     Bacheca.app = {

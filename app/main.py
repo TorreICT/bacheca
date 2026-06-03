@@ -144,7 +144,15 @@ def index():
     index_path = settings.static_root / "index.html"
     if not index_path.exists():
         raise HTTPException(status_code=404, detail="Dashboard index not found")
-    return FileResponse(str(index_path), media_type="text/html")
+    return FileResponse(
+        str(index_path),
+        media_type="text/html",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
 
 
 @app.get("/assets/js/config.js")
