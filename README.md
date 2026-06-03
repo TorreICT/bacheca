@@ -59,6 +59,7 @@ BACHECA_BAR_WIDGET_STATE_PATH=.cache/bar-widget-state.json
 MYCOLLEGE_MENU_URL=https://mycollegeapp.rui.it/jsonapi
 MYCOLLEGE_PASTI_URL=https://mycollegeapp.rui.it/jsonapi
 MYCOLLEGE_RESIDENCE=dG9ycmVzY2FsbGE-
+PIZZA_INDEX_URL=https://www.pizzint.watch/api/dashboard-data
 GOOGLE_CALENDAR_ID=eventi.torrescalla@fondazionerui.it
 ```
 
@@ -141,6 +142,13 @@ Expired or inactive occurrences are not displayed.
 
 Safe colors are stored only as final hex values. Accepted inputs are `#RRGGBB`
 or presets: `blue`, `green`, `red`, `orange`, `purple`, `teal`, `gray`, `dark`.
+
+## Pizza Index
+
+The browser polls `/api/pizza-index` independently every 30 seconds. Both the
+browser request and the backend request to `PIZZA_INDEX_URL` add cache-busting
+timestamps and no-cache headers so fresh upstream data is preferred whenever it
+is available.
 
 ## Soccer
 

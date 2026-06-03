@@ -3,6 +3,7 @@
     var config = window.BachecaConfig;
     var refreshTimer = null;
     var barWidgetTimer = null;
+    var pizzaIndexTimer = null;
     var dateCheckTimer = null;
     var activeDataDate = null;
 
@@ -10,6 +11,7 @@
         Bacheca.components.clock.init();
         refreshAll();
         startBarWidgetPoller();
+        startPizzaIndexPoller();
         startDateWatcher();
 
         if (refreshTimer) {
@@ -47,6 +49,15 @@
             window.clearInterval(barWidgetTimer);
         }
         barWidgetTimer = window.setInterval(refreshBarWidget, config.barWidgetRefreshMs || 12000);
+    }
+
+    function startPizzaIndexPoller() {
+        if (pizzaIndexTimer) {
+            window.clearInterval(pizzaIndexTimer);
+        }
+        pizzaIndexTimer = window.setInterval(function () {
+            refreshPizzaIndex(false);
+        }, config.pizzaIndexRefreshMs || 30000);
     }
 
     function refreshMeals() {
@@ -118,8 +129,10 @@
         });
     }
 
-    function refreshPizzaIndex() {
-        Bacheca.components.pizzaIndex.setLoading();
+    function refreshPizzaIndex(showLoading) {
+        if (showLoading !== false) {
+            Bacheca.components.pizzaIndex.setLoading();
+        }
         Bacheca.services.pizzaIndex.load(function (error, pizzaIndex) {
             Bacheca.components.pizzaIndex.render(pizzaIndex, error);
         });

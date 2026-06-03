@@ -67,9 +67,24 @@ async def api_calendar():
 @app.get("/api/pizza-index")
 async def api_pizza_index():
     try:
-        return await pizza.load_pizza_index()
+        return JSONResponse(
+            content=await pizza.load_pizza_index(),
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
     except httpx.HTTPError as error:
-        return JSONResponse(status_code=502, content={"error": "Pizza index not available", "detail": str(error)})
+        return JSONResponse(
+            status_code=502,
+            content={"error": "Pizza index not available", "detail": str(error)},
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
 
 
 @app.get("/api/random-photo")
