@@ -28,7 +28,12 @@
     }
 
     function refreshAll() {
-        activeDataDate = Bacheca.utils.date.formatIsoDate(new Date());
+        var currentDate = Bacheca.utils.date.formatIsoDate(new Date());
+        if (activeDataDate && currentDate !== activeDataDate) {
+            latestMenuData = null;
+            latestMealErrors = [];
+        }
+        activeDataDate = currentDate;
         refreshMeals();
         refreshCalendar();
         refreshWeather();
@@ -94,6 +99,7 @@
         Bacheca.services.menu.load(function (error, response) {
             if (error) {
                 errors.push(error);
+                latestMenuData = menuFallbackForError();
             } else {
                 latestMenuData = response;
             }
@@ -115,6 +121,7 @@
             var errors = [];
             if (error) {
                 errors.push(error);
+                latestMenuData = menuFallbackForError();
             } else {
                 latestMenuData = response;
             }
@@ -196,11 +203,35 @@
         if (!menu) {
             return false;
         }
-        return !mealMenuAvailable(menu.pranzo) && !mealMenuAvailable(menu.cena);
+        return !anyMenuAvailable(menu);
+    }
+
+    function anyMenuAvailable(menu) {
+        return !!(menu && (mealMenuAvailable(menu.pranzo) || mealMenuAvailable(menu.cena)));
     }
 
     function mealMenuAvailable(meal) {
         return !!(meal && meal.available);
+    }
+
+    function menuFallbackForError() {
+        if (anyMenuAvailable(latestMenuData)) {
+            return latestMenuData;
+        }
+        return emptyMenuData();
+    }
+
+    function emptyMenuData() {
+        return {
+            pranzo: {
+                available: false,
+                sections: []
+            },
+            cena: {
+                available: false,
+                sections: []
+            }
+        };
     }
 
     function applyAdaptiveLayout() {
