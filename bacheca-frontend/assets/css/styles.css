@@ -42,7 +42,7 @@ p {
 }
 
 .dashboard.has-bar-widget {
-    grid-template-rows: 150px 112px 54px minmax(0, 1fr);
+    grid-template-rows: 150px 112px 68px minmax(0, 1fr);
 }
 
 .dashboard-header,
@@ -237,7 +237,7 @@ p {
     grid-row: 3;
     min-width: 0;
     min-height: 0;
-    padding: 8px 12px;
+    padding: 10px 14px;
     overflow: hidden;
     background: #1565c0;
     display: flex;
@@ -1146,6 +1146,7 @@ p {
 .bar-widget-content {
     display: flex;
     align-items: center;
+    justify-content: center;
     width: 100%;
     height: 100%;
     min-width: 0;
@@ -1158,29 +1159,28 @@ p {
 .bar-widget-soccer,
 .bar-widget-empty {
     min-width: 0;
-    padding: 6px 9px;
+    padding: 9px 12px;
     border-radius: 8px;
     background: rgba(0, 0, 0, 0.2);
     display: flex;
     align-items: center;
+    justify-content: center;
+    text-align: center;
     overflow: hidden;
     box-shadow: 0 7px 16px rgba(0, 0, 0, 0.18);
 }
 
 .bar-widget-announcement,
+.bar-widget-countdown,
 .bar-widget-soccer,
 .bar-widget-empty {
-    flex: 1 1 auto;
-}
-
-.bar-widget-countdown {
-    flex: 0 0 auto;
+    flex: 1 1 0;
 }
 
 .bar-widget-label {
     flex: 0 0 auto;
     color: rgba(255, 255, 255, 0.78);
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
     line-height: 1;
     text-transform: uppercase;
@@ -1191,7 +1191,7 @@ p {
 .bar-widget-countdown-value,
 .bar-widget-empty {
     color: #ffffff;
-    font-size: 19px;
+    font-size: 21px;
     font-weight: 700;
     line-height: 1.08;
     white-space: nowrap;
