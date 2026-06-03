@@ -129,9 +129,10 @@ BACHECA_SOCCER_PROVIDER=football-data
 BACHECA_SOCCER_API_TOKEN=your-football-data-token
 BACHECA_SOCCER_BASE_URL=https://api.football-data.org/v4
 BACHECA_SOCCER_CACHE_PATH=.cache/soccer-cache.json
+BACHECA_SOCCER_BADGE_CACHE_DIR=.cache/soccer-badges
 BACHECA_SOCCER_CACHE_TTL_MS=600000
-BACHECA_SOCCER_LOOKBACK_DAYS=7
-BACHECA_SOCCER_LOOKAHEAD_DAYS=7
+BACHECA_SOCCER_LOOKBACK_DAYS=30
+BACHECA_SOCCER_LOOKAHEAD_DAYS=30
 BACHECA_SOCCER_MAX_ITEMS=4
 ```
 
@@ -144,6 +145,12 @@ football-data token is configured, then caches the available list in
 `.cache/soccer-cache.json`. If discovery is unavailable, it falls back to a
 local list that includes club competitions plus national-team competitions such
 as `WC` for FIFA World Cup and `EC` for European Championship.
+
+The bar soccer view uses a fixed 30-day window: up to 2 finished matches from
+the previous month and up to 2 upcoming matches from the next month. Team crests
+or flags are served through the same-origin `/api/soccer/badge` proxy and cached
+under `.cache/soccer-badges/`; the browser does not call football-data image
+URLs directly.
 
 ## Photos
 

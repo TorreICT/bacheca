@@ -75,6 +75,7 @@ class Settings:
     soccer_api_token = os.getenv("BACHECA_SOCCER_API_TOKEN", "")
     soccer_base_url = os.getenv("BACHECA_SOCCER_BASE_URL", "https://api.football-data.org/v4")
     soccer_cache_path = resolve_path("BACHECA_SOCCER_CACHE_PATH", ".cache/soccer-cache.json")
+    soccer_badge_cache_dir = resolve_path("BACHECA_SOCCER_BADGE_CACHE_DIR", ".cache/soccer-badges")
     soccer_cache_ttl_ms = get_int("BACHECA_SOCCER_CACHE_TTL_MS", 600000)
     soccer_lookback_days = get_int("BACHECA_SOCCER_LOOKBACK_DAYS", 7)
     soccer_lookahead_days = get_int("BACHECA_SOCCER_LOOKAHEAD_DAYS", 7)

@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
-from app.services import bar_widget, calendar, mycollege, photos, pizza
+from app.services import bar_widget, calendar, mycollege, photos, pizza, soccer
 
 
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -99,6 +99,17 @@ def api_random_photo_image(photo_id: str):
 @app.get("/api/bar-widget")
 async def api_bar_widget():
     return await bar_widget.public_state()
+
+
+@app.get("/api/soccer/badge")
+async def api_soccer_badge(src: str = Query(...)):
+    try:
+        path, media_type = await soccer.badge_file(src)
+    except Exception:
+        path, media_type = None, ""
+    if not path:
+        raise HTTPException(status_code=404, detail="Badge not available")
+    return FileResponse(str(path), media_type=media_type)
 
 
 @app.get("/")

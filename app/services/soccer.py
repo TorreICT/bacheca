@@ -1,8 +1,10 @@
 import json
+import hashlib
+import mimetypes
 import os
 import tempfile
 from datetime import timedelta
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode, urlparse
 
 import httpx
 
@@ -22,6 +24,11 @@ COMPETITIONS = {
     "EL": "Europa League",
 }
 COMPETITIONS_CACHE_KEY = "__competitions__"
+BAR_MATCH_WINDOW_DAYS = 30
+BAR_RESULT_LIMIT = 2
+BAR_FIXTURE_LIMIT = 2
+BADGE_HOST = "crests.football-data.org"
+BADGE_MAX_BYTES = 1024 * 1024
 
 
 def competition_label(code):
@@ -86,8 +93,8 @@ async def load_compact(competition):
 
 
 async def fetch_compact(code):
-    start = bar_widget.now().date() - timedelta(days=max(0, settings.soccer_lookback_days))
-    end = bar_widget.now().date() + timedelta(days=max(0, settings.soccer_lookahead_days))
+    start = bar_widget.now().date() - timedelta(days=BAR_MATCH_WINDOW_DAYS)
+    end = bar_widget.now().date() + timedelta(days=BAR_MATCH_WINDOW_DAYS)
     params = urlencode({"dateFrom": start.isoformat(), "dateTo": end.isoformat()})
     base_url = settings.soccer_base_url.rstrip("/")
     url = base_url + "/competitions/" + code + "/matches?" + params
@@ -168,27 +175,25 @@ def normalize_competition_choices(body):
 
 def normalize_matches(code, body):
     matches = body.get("matches") if isinstance(body, dict) else []
-    now = bar_widget.now()
+    current = bar_widget.now()
     results = []
     fixtures = []
-    max_items = max(1, settings.soccer_max_items)
 
     for match in matches or []:
-        item = normalize_match(match, now)
+        item = normalize_match(match, current)
         if not item:
             continue
         if item["kind"] == "result":
             results.append(item)
-        else:
+        elif item["kind"] == "fixture":
             fixtures.append(item)
 
     results.sort(key=lambda item: item["sortAt"], reverse=True)
     fixtures.sort(key=lambda item: item["sortAt"])
 
-    items = results[:max_items]
-    remaining = max_items - len(items)
-    if remaining > 0:
-        items.extend(fixtures[:remaining])
+    results = results[:BAR_RESULT_LIMIT]
+    fixtures = fixtures[:BAR_FIXTURE_LIMIT]
+    items = results + fixtures
 
     for item in items:
         item.pop("sortAt", None)
@@ -198,8 +203,10 @@ def normalize_matches(code, body):
         "available": True,
         "competition": code,
         "label": competition_label(code),
+        "results": results,
+        "fixtures": fixtures,
         "items": items,
-        "updatedAt": bar_widget.isoformat(now),
+        "updatedAt": bar_widget.isoformat(current),
     }
 
 
@@ -210,8 +217,8 @@ def normalize_match(match, current):
     if not match_time:
         return None
 
-    home = team_name(match.get("homeTeam"))
-    away = team_name(match.get("awayTeam"))
+    home = normalize_team(match.get("homeTeam"))
+    away = normalize_team(match.get("awayTeam"))
     if not home or not away:
         return None
 
@@ -226,16 +233,27 @@ def normalize_match(match, current):
             return None
         return {
             "kind": "result",
-            "text": home + " " + str(home_score) + "-" + str(away_score) + " " + away,
+            "dateLabel": format_match_date(match_time, include_time=False),
             "time": bar_widget.isoformat(match_time),
+            "home": home,
+            "away": away,
+            "score": {
+                "home": home_score,
+                "away": away_score,
+            },
+            "text": format_match_date(match_time, include_time=False) + " " + home["abbr"] + " " + str(home_score) + "-" + str(away_score) + " " + away["abbr"],
             "sortAt": match_time,
         }
 
     if status in ("SCHEDULED", "TIMED", "IN_PLAY", "PAUSED", "LIVE") and match_time >= current - timedelta(hours=4):
         return {
             "kind": "fixture",
-            "text": fixture_prefix(match_time, current) + " " + home + "-" + away,
+            "dateLabel": format_match_date(match_time, include_time=True),
             "time": bar_widget.isoformat(match_time),
+            "home": home,
+            "away": away,
+            "score": None,
+            "text": format_match_date(match_time, include_time=True) + " " + home["abbr"] + " vs " + away["abbr"],
             "sortAt": match_time,
         }
 
@@ -249,29 +267,44 @@ def parse_match_time(value):
         return None
 
 
-def team_name(team):
+def normalize_team(team):
     if not isinstance(team, dict):
-        return ""
+        return None
+    name = ""
     for key in ("shortName", "tla", "name"):
         value = str(team.get(key) or "").strip()
         if value:
-            return value
-    return ""
+            name = value
+            break
+    if not name:
+        return None
+    full_name = str(team.get("name") or name).strip()
+    short_name = str(team.get("shortName") or name).strip()
+    abbr = str(team.get("tla") or "").strip().upper()
+    if not abbr:
+        abbr = short_name.replace(" ", "")[:3].upper()
+    badge_source = safe_badge_source(team.get("crest") or team.get("flag"))
+    return {
+        "name": full_name,
+        "shortName": short_name,
+        "abbr": abbr,
+        "badgeUrl": badge_proxy_url(badge_source) if badge_source else "",
+    }
 
 
-def fixture_prefix(match_time, current):
+def format_match_date(match_time, include_time):
     local = match_time.astimezone(bar_widget.timezone())
-    today = current.date()
-    if local.date() == today:
-        return "Oggi " + local.strftime("%H:%M")
-    if local.date() == today + timedelta(days=1):
-        return "Domani " + local.strftime("%H:%M")
-    return local.strftime("%d/%m %H:%M")
+    if include_time:
+        return local.strftime("%d/%m %H:%M")
+    return local.strftime("%d/%m")
 
 
 def unavailable(code, message, cached=None):
     if cached and cached.get("payload"):
         payload = dict(cached["payload"])
+        payload.setdefault("results", [])
+        payload.setdefault("fixtures", [])
+        payload.setdefault("items", [])
         payload["stale"] = True
         payload["message"] = message
         return payload
@@ -280,9 +313,79 @@ def unavailable(code, message, cached=None):
         "available": False,
         "competition": code,
         "label": competition_label(code),
+        "results": [],
+        "fixtures": [],
         "items": [],
         "message": message,
     }
+
+
+def safe_badge_source(value):
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    parsed = urlparse(text)
+    if parsed.scheme != "https" or parsed.netloc.lower() != BADGE_HOST:
+        return ""
+    if not parsed.path or parsed.path.endswith("/"):
+        return ""
+    return text
+
+
+def badge_proxy_url(source):
+    return "/api/soccer/badge?src=" + quote(source, safe="")
+
+
+def badge_cache_path(source):
+    safe_source = safe_badge_source(source)
+    if not safe_source:
+        return None
+    parsed = urlparse(safe_source)
+    extension = os.path.splitext(parsed.path)[1].lower()
+    if extension not in (".png", ".jpg", ".jpeg", ".svg", ".webp"):
+        extension = ".img"
+    name = hashlib.sha1(safe_source.encode("utf-8")).hexdigest() + extension
+    return settings.soccer_badge_cache_dir / name
+
+
+def badge_media_type(path):
+    media_type, _ = mimetypes.guess_type(str(path))
+    return media_type or "application/octet-stream"
+
+
+async def badge_file(source):
+    safe_source = safe_badge_source(source)
+    if not safe_source:
+        return None, ""
+    path = badge_cache_path(safe_source)
+    if not path:
+        return None, ""
+    if path.exists():
+        return path, badge_media_type(path)
+
+    settings.soccer_badge_cache_dir.mkdir(parents=True, exist_ok=True)
+    async with httpx.AsyncClient(timeout=settings.request_timeout) as client:
+        response = await client.get(
+            safe_source,
+            headers={
+                "Accept": "image/*",
+                "User-Agent": "Torrescalla-Bacheca/2.0",
+            },
+        )
+        response.raise_for_status()
+        body = response.content
+    if len(body) > BADGE_MAX_BYTES:
+        return None, ""
+
+    fd, temp_name = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(body)
+        os.replace(temp_name, path)
+    finally:
+        if os.path.exists(temp_name):
+            os.unlink(temp_name)
+    return path, badge_media_type(path)
 
 
 def cache_is_fresh(entry):

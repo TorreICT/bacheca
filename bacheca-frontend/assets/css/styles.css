@@ -237,7 +237,7 @@ p {
     grid-row: 3;
     min-width: 0;
     min-height: 0;
-    padding: 12px 16px;
+    padding: 6px 10px;
     overflow: hidden;
     background: #1565c0;
     display: flex;
@@ -1177,6 +1177,14 @@ p {
     flex: 1 1 0;
 }
 
+.bar-widget-announcement {
+    flex-grow: 1.4;
+}
+
+.bar-widget-soccer {
+    flex-grow: 1.8;
+}
+
 .bar-widget-label {
     flex: 0 0 auto;
     color: rgba(255, 255, 255, 0.78);
@@ -1201,6 +1209,208 @@ p {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.bar-widget-marquee {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-align: center;
+}
+
+.bar-widget-marquee-track {
+    display: inline-block;
+    max-width: none;
+    color: #ffffff;
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.05;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.bar-widget-marquee-spacer,
+.bar-widget-marquee-clone {
+    display: none;
+}
+
+.bar-widget-marquee.is-scrolling {
+    text-align: left;
+}
+
+.bar-widget-marquee.is-scrolling .bar-widget-marquee-track {
+    animation: bar-widget-marquee-scroll 32s linear infinite;
+}
+
+.bar-widget-marquee.is-scrolling .bar-widget-marquee-spacer,
+.bar-widget-marquee.is-scrolling .bar-widget-marquee-clone {
+    display: inline;
+}
+
+.bar-widget-soccer {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 4px 8px;
+}
+
+.bar-widget-soccer > * + * {
+    margin-left: 0;
+    margin-top: 3px;
+}
+
+.bar-widget-soccer-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    min-width: 0;
+    margin-bottom: 3px;
+}
+
+.bar-widget-soccer-header > * + * {
+    margin-left: 7px;
+}
+
+.bar-widget-soccer-title {
+    min-width: 0;
+    color: #ffffff;
+    font-size: 15px;
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bar-widget-soccer-body {
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    min-width: 0;
+    width: 100%;
+    overflow: hidden;
+}
+
+.bar-widget-soccer-body > * + * {
+    margin-left: 8px;
+}
+
+.bar-widget-soccer-group {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.bar-widget-soccer-group > * + * {
+    margin-left: 5px;
+}
+
+.bar-widget-soccer-group-label {
+    flex: 0 0 auto;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.bar-widget-soccer-rows {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.bar-widget-soccer-rows > * + * {
+    margin-top: 2px;
+}
+
+.bar-widget-soccer-match {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    overflow: hidden;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.bar-widget-soccer-match > * + * {
+    margin-left: 4px;
+}
+
+.bar-widget-soccer-date {
+    flex: 0 0 auto;
+    color: rgba(255, 255, 255, 0.76);
+    font-size: 11px;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.bar-widget-soccer-team {
+    flex: 0 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.bar-widget-soccer-team > * + * {
+    margin-left: 2px;
+}
+
+.bar-widget-soccer-badge {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    display: block;
+    object-fit: contain;
+}
+
+.bar-widget-soccer-abbr {
+    min-width: 28px;
+    padding: 2px 3px;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+    font-size: 12px;
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bar-widget-soccer-score {
+    flex: 0 0 auto;
+    min-width: 32px;
+    color: #ffffff;
+    font-size: 14px;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.bar-widget-soccer-message,
+.bar-widget-soccer-empty {
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@keyframes bar-widget-marquee-scroll {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(-50%);
+    }
 }
 
 @media (max-width: 980px) {
@@ -1255,6 +1465,10 @@ p {
     .bar-widget-panel,
     .birthdays-panel.is-featured {
         padding: 14px;
+    }
+
+    .bar-widget-panel {
+        padding: 6px 10px;
     }
 
     .clock-panel {
