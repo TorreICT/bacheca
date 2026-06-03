@@ -9,6 +9,7 @@
             barWidget: "/api/bar-widget"
         },
         refreshMs: 15 * 60 * 1000,
+        menuRefreshMs: 60 * 1000,
         barWidgetRefreshMs: 12 * 1000,
         pizzaIndexRefreshMs: 30 * 1000,
         requestTimeoutMs: 8000,

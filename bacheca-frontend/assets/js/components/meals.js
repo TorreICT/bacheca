@@ -5,6 +5,8 @@
     var dom = Bacheca.utils.dom;
 
     function setLoading() {
+        setCompactMode(false);
+        renderUnavailableMessage(false);
         dom.setText(dom.byId("meals-status"), "Caricamento");
         renderStats("stats-pranzo", null);
         renderStats("stats-cena", null);
@@ -16,13 +18,54 @@
         var errors = data && data.errors ? data.errors : [];
         var stats = data && data.stats ? data.stats : null;
         var menu = data && data.menu ? data.menu : null;
+        var compactNoMenu = !!(data && data.compactNoMenu);
 
         dom.setText(dom.byId("meals-status"), errors.length ? "Dati parziali" : "Aggiornato");
+        setCompactMode(compactNoMenu);
 
         renderStats("stats-pranzo", stats && stats.pranzo);
         renderStats("stats-cena", stats && stats.cena);
+
+        if (compactNoMenu) {
+            clearMenu("menu-pranzo");
+            clearMenu("menu-cena");
+            renderUnavailableMessage(true);
+            return;
+        }
+
+        renderUnavailableMessage(false);
         renderMenu("menu-pranzo", menu && menu.pranzo);
         renderMenu("menu-cena", menu && menu.cena);
+    }
+
+    function setCompactMode(enabled) {
+        var panel = dom.byId("meals-panel");
+        if (!panel) {
+            return;
+        }
+        if (enabled) {
+            dom.addClass(panel, "is-menu-unavailable-compact");
+        } else {
+            dom.removeClass(panel, "is-menu-unavailable-compact");
+        }
+    }
+
+    function renderUnavailableMessage(show) {
+        var panel = dom.byId("meals-panel");
+        var existing = dom.byId("menu-unavailable-message");
+        var message;
+
+        if (existing && existing.parentNode) {
+            existing.parentNode.removeChild(existing);
+        }
+
+        if (!show || !panel) {
+            return;
+        }
+
+        message = dom.create("div", "menu-unavailable-message", "Il menu non \u00e8 ancora disponibile");
+        message.id = "menu-unavailable-message";
+        panel.appendChild(message);
     }
 
     function renderStats(id, mealStats) {
@@ -98,8 +141,7 @@
     function renderMenu(id, mealMenu) {
         var mount = dom.byId(id);
 
-        dom.clear(mount);
-        dom.removeClass(mount, "is-available");
+        clearMenu(id);
 
         if (!mealMenu || !mealMenu.available) {
             mount.appendChild(dom.emptyState("Il menu non \u00e8 ancora uscito"));
@@ -110,6 +152,12 @@
         mealMenu.sections.forEach(function (section) {
             mount.appendChild(createMenuSection(section));
         });
+    }
+
+    function clearMenu(id) {
+        var mount = dom.byId(id);
+        dom.clear(mount);
+        dom.removeClass(mount, "is-available");
     }
 
     function createMenuSection(section) {
