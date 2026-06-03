@@ -1,7 +1,7 @@
 import json
 import os
 import tempfile
-from datetime import datetime, timedelta
+from datetime import timedelta
 from urllib.parse import urlencode
 
 import httpx
@@ -11,6 +11,8 @@ from app.services import bar_widget
 
 
 COMPETITIONS = {
+    "WC": "FIFA World Cup",
+    "EC": "European Championship",
     "SA": "Serie A",
     "PL": "Premier League",
     "PD": "La Liga",
@@ -19,6 +21,7 @@ COMPETITIONS = {
     "CL": "Champions League",
     "EL": "Europa League",
 }
+COMPETITIONS_CACHE_KEY = "__competitions__"
 
 
 def competition_label(code):
@@ -27,7 +30,30 @@ def competition_label(code):
 
 
 def competition_choices():
-    return [{"code": code, "label": label} for code, label in sorted(COMPETITIONS.items(), key=lambda item: item[1])]
+    return [{"code": code, "label": label, "source": "fallback"} for code, label in sorted(COMPETITIONS.items(), key=lambda item: item[1])]
+
+
+async def load_competition_choices():
+    cached = read_cache(COMPETITIONS_CACHE_KEY)
+    if cached and cache_is_fresh(cached):
+        choices = cached.get("payload")
+        if isinstance(choices, list) and choices:
+            return choices
+
+    if settings.soccer_provider.strip().lower() != "football-data" or not settings.soccer_api_token:
+        return competition_choices()
+
+    try:
+        choices = await fetch_competition_choices()
+    except Exception:
+        if cached and isinstance(cached.get("payload"), list) and cached["payload"]:
+            return cached["payload"]
+        return competition_choices()
+
+    if choices:
+        write_cache(COMPETITIONS_CACHE_KEY, choices)
+        return choices
+    return competition_choices()
 
 
 def normalize_competition(code):
@@ -79,6 +105,65 @@ async def fetch_compact(code):
         body = response.json()
 
     return normalize_matches(code, body)
+
+
+async def fetch_competition_choices():
+    base_url = settings.soccer_base_url.rstrip("/")
+    url = base_url + "/competitions"
+
+    async with httpx.AsyncClient(timeout=settings.request_timeout) as client:
+        response = await client.get(
+            url,
+            headers={
+                "Accept": "application/json",
+                "User-Agent": "Torrescalla-Bacheca/2.0",
+                "X-Auth-Token": settings.soccer_api_token,
+            },
+        )
+        response.raise_for_status()
+        body = response.json()
+
+    return normalize_competition_choices(body)
+
+
+def normalize_competition_choices(body):
+    competitions = body.get("competitions") if isinstance(body, dict) else []
+    choices = []
+    seen = set()
+
+    for item in competitions or []:
+        if not isinstance(item, dict):
+            continue
+        raw_code = str(item.get("code") or "").strip().upper()
+        if not raw_code:
+            continue
+        code = normalize_competition(raw_code)
+        if not code or code in seen:
+            continue
+        name = str(item.get("name") or COMPETITIONS.get(code) or code).strip()
+        area = item.get("area") if isinstance(item.get("area"), dict) else {}
+        area_name = str(area.get("name") or "").strip()
+        label = name
+        if area_name and area_name.lower() not in name.lower():
+            label = area_name + " - " + name
+        choices.append(
+            {
+                "code": code,
+                "label": label[:48],
+                "source": "football-data",
+            }
+        )
+        seen.add(code)
+
+    choices.sort(key=lambda choice: choice["label"])
+
+    fallback = competition_choices()
+    for choice in fallback:
+        if choice["code"] not in seen:
+            choices.append(choice)
+            seen.add(choice["code"])
+
+    return choices
 
 
 def normalize_matches(code, body):

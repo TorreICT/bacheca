@@ -126,11 +126,12 @@ def soccer_keyboard():
     )
 
 
-def soccer_competition_keyboard():
+async def soccer_competition_keyboard():
     rows = []
     row = []
-    for choice in soccer.competition_choices():
-        row.append(InlineKeyboardButton(choice["label"], callback_data="soccer_comp:" + choice["code"]))
+    choices = await soccer.load_competition_choices()
+    for choice in choices:
+        row.append(InlineKeyboardButton(competition_button_label(choice), callback_data="soccer_comp:" + choice["code"]))
         if len(row) == 2:
             rows.append(row)
             row = []
@@ -138,6 +139,15 @@ def soccer_competition_keyboard():
         rows.append(row)
     rows.append([InlineKeyboardButton("Back", callback_data="soccer_menu")])
     return InlineKeyboardMarkup(rows)
+
+
+def competition_button_label(choice):
+    code = str(choice.get("code") or "").strip()
+    label = str(choice.get("label") or code).strip()
+    text = code + " - " + label if code and code not in label else label
+    if len(text) > 56:
+        text = text[:53] + "..."
+    return text
 
 
 def confirm_keyboard(yes_data, no_data):
@@ -322,7 +332,7 @@ async def callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         bar_widget.set_soccer_enabled(False)
         await query.edit_message_text("Soccer disabled.", reply_markup=main_keyboard())
     elif data == "soccer_comp_menu":
-        await query.edit_message_text("Choose competition.", reply_markup=soccer_competition_keyboard())
+        await query.edit_message_text("Choose competition. The list is loaded from football-data when available.", reply_markup=await soccer_competition_keyboard())
     elif data.startswith("soccer_comp:"):
         code = data.split(":", 1)[1]
         bar_widget.set_soccer_competition(code)
@@ -538,7 +548,7 @@ async def soccer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     code = " ".join(context.args).strip()
     if not code:
-        await update.message.reply_text("Usage: /soccer SA", reply_markup=soccer_competition_keyboard())
+        await update.message.reply_text("Usage: /soccer SA", reply_markup=await soccer_competition_keyboard())
         return
     bar_widget.set_soccer_competition(code)
     await update.message.reply_text("Competition set to " + soccer.competition_label(code) + ".", reply_markup=main_keyboard())

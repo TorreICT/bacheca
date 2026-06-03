@@ -139,6 +139,12 @@ If the token is missing or the provider fails, announcements and countdowns keep
 working. Soccer returns an unavailable message, or stale cached data when a
 previous successful response exists.
 
+The bot competition picker queries `GET /v4/competitions` when the
+football-data token is configured, then caches the available list in
+`.cache/soccer-cache.json`. If discovery is unavailable, it falls back to a
+local list that includes club competitions plus national-team competitions such
+as `WC` for FIFA World Cup and `EC` for European Championship.
+
 ## Photos
 
 Mount the FOTO share on the VM, usually at `/mnt/foto`, and make it readable by
