@@ -21,8 +21,11 @@
         var panel = dom.byId("bar-widget-panel");
         var content = dom.byId("bar-widget-content");
         var dashboard = dom.byId("dashboard");
+        var previousIndex = activeSlideIndex;
+        var previousKey = currentSlideKey();
+        var nextSlides;
 
-        clearTimers();
+        clearCountdownTimer();
         activeFitItems = [];
         currentContent = content;
 
@@ -38,12 +41,13 @@
         }
 
         panel.style.backgroundColor = safeColor(data.color);
-        slides = buildSlides(data);
-        activeSlideIndex = 0;
+        nextSlides = buildSlides(data);
 
-        if (!slides.length) {
-            slides.push({ type: "empty", text: "Bacheca aggiornata" });
+        if (!nextSlides.length) {
+            nextSlides.push({ type: "empty", text: "Bacheca aggiornata" });
         }
+        slides = nextSlides;
+        activeSlideIndex = preservedSlideIndex(previousKey, previousIndex);
 
         dom.removeClass(panel, "is-hidden");
         if (dashboard) {
@@ -52,11 +56,12 @@
 
         attachResizeHandler();
         renderActiveSlide();
-        startSlideRotation();
+        ensureSlideRotation();
     }
 
     function hide(panel, dashboard) {
         slides = [];
+        clearTimers();
         dom.addClass(panel, "is-hidden");
         if (dashboard) {
             dom.removeClass(dashboard, "has-bar-widget");
@@ -65,8 +70,6 @@
 
     function buildSlides(data) {
         var list = [];
-        var soccerSlides;
-        var i;
 
         if (data.announcement && data.announcement.text) {
             list.push({ type: "announcement", announcement: data.announcement });
@@ -77,50 +80,46 @@
         }
 
         if (data.soccer && data.soccer.enabled) {
-            soccerSlides = buildSoccerSlides(data.soccer);
-            for (i = 0; i < soccerSlides.length; i++) {
-                list.push(soccerSlides[i]);
-            }
+            list.push(buildSoccerSlide(data.soccer));
         }
 
         return list;
     }
 
-    function buildSoccerSlides(soccer) {
-        var list = [];
+    function buildSoccerSlide(soccer) {
+        var matches = [];
         var fixtures = arrayOrEmpty(soccer.fixtures);
         var results = arrayOrEmpty(soccer.results);
         var liveMatches = [];
         var futureMatches = [];
         var i;
 
-        if (!soccer.available) {
-            return [{ type: "soccer-message", soccer: soccer, text: soccer.message || "Calcio non disponibile" }];
-        }
+        if (soccer.available) {
+            for (i = 0; i < fixtures.length; i++) {
+                if (fixtures[i] && fixtures[i].live) {
+                    liveMatches.push(fixtures[i]);
+                } else if (fixtures[i]) {
+                    futureMatches.push(fixtures[i]);
+                }
+            }
 
-        for (i = 0; i < fixtures.length; i++) {
-            if (fixtures[i] && fixtures[i].live) {
-                liveMatches.push(fixtures[i]);
-            } else if (fixtures[i]) {
-                futureMatches.push(fixtures[i]);
+            for (i = 0; i < liveMatches.length; i++) {
+                matches.push({ match: liveMatches[i], label: "Live" });
+            }
+            for (i = 0; i < results.length; i++) {
+                matches.push({ match: results[i], label: "Ultime" });
+            }
+            for (i = 0; i < futureMatches.length; i++) {
+                matches.push({ match: futureMatches[i], label: "Prossime" });
             }
         }
 
-        for (i = 0; i < liveMatches.length; i++) {
-            list.push({ type: "soccer-match", soccer: soccer, match: liveMatches[i], label: "Live" });
-        }
-        for (i = 0; i < results.length; i++) {
-            list.push({ type: "soccer-match", soccer: soccer, match: results[i], label: "Ultime" });
-        }
-        for (i = 0; i < futureMatches.length; i++) {
-            list.push({ type: "soccer-match", soccer: soccer, match: futureMatches[i], label: "Prossime" });
-        }
-
-        if (!list.length) {
-            list.push({ type: "soccer-message", soccer: soccer, text: soccer.message || "Nessuna partita in evidenza" });
-        }
-
-        return list;
+        return {
+            type: "soccer",
+            soccer: soccer,
+            matches: matches,
+            text: soccer.available ? "Nessuna partita in evidenza" : soccer.message || "Calcio non disponibile"
+        };
     }
 
     function renderActiveSlide() {
@@ -146,10 +145,8 @@
             currentContent.appendChild(createAnnouncementSlide(slide.announcement));
         } else if (slide.type === "countdown") {
             currentContent.appendChild(createCountdownSlide(slide.countdown));
-        } else if (slide.type === "soccer-match") {
-            currentContent.appendChild(createSoccerMatchSlide(slide));
-        } else if (slide.type === "soccer-message") {
-            currentContent.appendChild(createMessageSlide("Calcio", slide.text));
+        } else if (slide.type === "soccer") {
+            currentContent.appendChild(createSoccerSlide(slide));
         } else {
             currentContent.appendChild(createMessageSlide("", slide.text || "Bacheca aggiornata"));
         }
@@ -157,14 +154,56 @@
         window.setTimeout(fitActiveText, 0);
     }
 
-    function startSlideRotation() {
+    function ensureSlideRotation() {
         if (slides.length <= 1) {
+            clearSlideTimer();
+            return;
+        }
+        if (slideTimer) {
             return;
         }
         slideTimer = window.setInterval(function () {
             activeSlideIndex = (activeSlideIndex + 1) % slides.length;
             renderActiveSlide();
         }, slideIntervalMs);
+    }
+
+    function preservedSlideIndex(previousKey, previousIndex) {
+        var i;
+        if (previousKey) {
+            for (i = 0; i < slides.length; i++) {
+                if (slideKey(slides[i]) === previousKey) {
+                    return i;
+                }
+            }
+        }
+        if (previousIndex >= 0 && previousIndex < slides.length) {
+            return previousIndex;
+        }
+        return 0;
+    }
+
+    function currentSlideKey() {
+        if (!slides.length || activeSlideIndex < 0 || activeSlideIndex >= slides.length) {
+            return "";
+        }
+        return slideKey(slides[activeSlideIndex]);
+    }
+
+    function slideKey(slide) {
+        if (!slide) {
+            return "";
+        }
+        if (slide.type === "announcement") {
+            return "announcement";
+        }
+        if (slide.type === "countdown") {
+            return "countdown";
+        }
+        if (slide.type === "soccer") {
+            return "soccer";
+        }
+        return slide.type || "";
     }
 
     function createAnnouncementSlide(announcement) {
@@ -206,8 +245,33 @@
         return item;
     }
 
-    function createSoccerMatchSlide(slide) {
-        var item = dom.create("div", "bar-widget-slide bar-widget-soccer-card");
+    function createSoccerSlide(slide) {
+        var item = dom.create("div", "bar-widget-slide bar-widget-soccer-slide");
+        var header = dom.create("div", "bar-widget-soccer-header");
+        var list = dom.create("div", "bar-widget-soccer-match-list");
+        var matches = arrayOrEmpty(slide.matches);
+        var i;
+
+        header.appendChild(dom.create("span", "bar-widget-label", "Calcio"));
+        if (slide.soccer && (slide.soccer.label || slide.soccer.competition)) {
+            header.appendChild(dom.create("strong", "bar-widget-soccer-title", slide.soccer.label || slide.soccer.competition));
+        }
+        item.appendChild(header);
+
+        if (!matches.length) {
+            item.appendChild(dom.create("div", "bar-widget-soccer-message", slide.text || "Nessuna partita in evidenza"));
+            return item;
+        }
+
+        for (i = 0; i < matches.length; i++) {
+            list.appendChild(createSoccerMatchCard(matches[i]));
+        }
+        item.appendChild(list);
+        return item;
+    }
+
+    function createSoccerMatchCard(slide) {
+        var item = dom.create("div", "bar-widget-soccer-card");
         var match = slide.match || {};
         var top = dom.create("div", "bar-widget-soccer-card-top");
         var middle = dom.create("div", "bar-widget-soccer-card-middle");
@@ -215,9 +279,6 @@
 
         top.appendChild(dom.create("span", "bar-widget-soccer-card-label", slide.label || "Calcio"));
         top.appendChild(dom.create("strong", "bar-widget-soccer-card-date", soccerDateTime(match)));
-        if (slide.soccer && (slide.soccer.label || slide.soccer.competition)) {
-            top.appendChild(dom.create("span", "bar-widget-soccer-card-competition", slide.soccer.label || slide.soccer.competition));
-        }
 
         scoreBlock.appendChild(dom.create("strong", "bar-widget-soccer-card-score", soccerScore(match)));
         scoreBlock.appendChild(dom.create("span", match.live ? "bar-widget-soccer-live" : "bar-widget-soccer-status", soccerStatus(match)));
@@ -261,6 +322,9 @@
     function soccerDateTime(match) {
         var date = match && match.displayDate ? match.displayDate : "";
         var time = match && match.displayTime ? match.displayTime : "";
+        if (!date && match && match.dateLabel) {
+            return match.dateLabel;
+        }
         if (date && time) {
             return date + " " + time;
         }
@@ -366,6 +430,10 @@
 
     function clearTimers() {
         clearCountdownTimer();
+        clearSlideTimer();
+    }
+
+    function clearSlideTimer() {
         if (slideTimer) {
             window.clearInterval(slideTimer);
             slideTimer = null;
