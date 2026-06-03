@@ -70,8 +70,9 @@ with escaped `\n` characters or as quoted PEM text.
 The horizontal bar between weather forecast and menu is owned by the backend at
 `/api/bar-widget`. The browser only polls this same-origin endpoint every 12
 seconds; it never talks to Telegram or soccer APIs. State is stored as JSON in
-`.cache/bar-widget-state.json` by default, and overlapping announcements use the
-deterministic policy `newest wins`.
+`.cache/bar-widget-state.json` by default. When multiple announcements are
+active, the backend returns all of them in deterministic newest-first order and
+the frontend rotates them as separate slides.
 
 Run the controller bot as a separate process:
 
@@ -90,11 +91,11 @@ TELEGRAM_ALLOWED_CHAT_IDS=123456789,-1001234567890
 bot refuses to start; chats not in the list cannot modify state.
 
 Use `/start` for an introduction and `/panel` for the main inline-button panel.
-Buttons cover show/hide, announcement creation, countdowns, color
-presets/custom colors, soccer enable/disable, competition selection, and
-confirmation for destructive actions. `/my_id` shows the current chat ID and is
-the only command available to unauthorized chats. `/cancel` stops a guided flow
-and `/help` shows shortcuts.
+Buttons cover show/hide, announcement creation, active announcement listing,
+single-announcement deletion, countdowns, color presets/custom colors, soccer
+enable/disable, competition selection, and confirmation for destructive actions.
+`/my_id` shows the current chat ID and is the only command available to
+unauthorized chats. `/cancel` stops a guided flow and `/help` shows shortcuts.
 
 Raw command shortcuts:
 
@@ -102,7 +103,8 @@ Raw command shortcuts:
 /show
 /hide
 /my_id
-/announce Text | 2026-06-03T22:00:00+02:00
+/announce Text | 2h
+/announce Text | 2026-06-03T18:00:00+02:00 | 2h
 /countdown Label | 2026-06-03T20:00:00+02:00
 /color blue
 /color #1565C0
@@ -111,11 +113,13 @@ Raw command shortcuts:
 /soccer_off
 ```
 
-Every announcement must have an end time. One-shot announcements use ISO
-datetimes for start/end. Periodic announcements are created through the guided
-flow: daily runs every day, weekly asks for days as `0=Mon ... 6=Sun`, then an
-occurrence start time such as `19:30`, a duration in minutes, and an ISO
-recurrence end datetime. Expired or inactive occurrences are not displayed.
+Every announcement still has an end time internally. For one-shot announcements,
+the Telegram bot asks for start time (`ora`/`now` or an ISO datetime) and a
+duration such as `30m`, `2h`, or `1d`; the bot computes the end time. Periodic
+announcements are created through the guided flow: daily runs every day, weekly
+asks for days as `0=Mon ... 6=Sun`, then an occurrence start time such as
+`19:30`, a duration such as `90m` or `2h`, and an ISO recurrence end datetime.
+Expired or inactive occurrences are not displayed.
 
 Safe colors are stored only as final hex values. Accepted inputs are `#RRGGBB`
 or presets: `blue`, `green`, `red`, `orange`, `purple`, `teal`, `gray`, `dark`.

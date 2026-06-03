@@ -24,7 +24,7 @@ COLOR_PRESETS = {
 }
 HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
 TIME_RE = re.compile(r"^\d{1,2}:\d{2}(:\d{2})?$")
-ANNOUNCEMENT_POLICY = "newest wins"
+ANNOUNCEMENT_POLICY = "all active rotate, newest first"
 
 _state_lock = threading.Lock()
 
@@ -279,6 +279,11 @@ def normalize_soccer(item):
 
 
 def active_announcement(state, current=None):
+    announcements = active_announcements(state, current)
+    return announcements[0] if announcements else None
+
+
+def active_announcements(state, current=None):
     current = current or now()
     candidates = []
     for item in state.get("announcements") or []:
@@ -286,15 +291,18 @@ def active_announcement(state, current=None):
         if occurrence:
             candidates.append((parse_datetime(item["createdAt"]), item.get("id") or "", item, occurrence))
     if not candidates:
-        return None
-    candidates.sort(key=lambda row: (row[0], row[1]))
-    chosen = candidates[-1]
-    item = chosen[2]
-    occurrence = chosen[3]
+        return []
+    candidates.sort(key=lambda row: (row[0], row[1]), reverse=True)
+    return [public_announcement(row[2], row[3]) for row in candidates]
+
+
+def public_announcement(item, occurrence):
     return {
         "id": item.get("id"),
+        "kind": item.get("kind") or "one-shot",
         "text": item.get("text"),
         "policy": ANNOUNCEMENT_POLICY,
+        "createdAt": item.get("createdAt"),
         "startsAt": isoformat(occurrence["startsAt"]),
         "endsAt": isoformat(occurrence["endsAt"]),
     }
@@ -376,10 +384,12 @@ def active_countdown(state, current=None):
 async def public_state():
     state = load_state()
     current = now()
+    announcements = active_announcements(state, current)
     response = {
         "visible": bool(state.get("visible")),
         "color": normalize_color(state.get("color") or DEFAULT_COLOR),
-        "announcement": active_announcement(state, current),
+        "announcement": announcements[0] if announcements else None,
+        "announcements": announcements,
         "countdown": active_countdown(state, current),
         "soccer": await public_soccer(state),
         "updatedAt": state.get("updatedAt") or isoformat(current),
@@ -467,6 +477,64 @@ def add_periodic_announcement(text, frequency, days_of_week, start_time, recurre
         state["visible"] = True
 
     return update_state(mutate)
+
+
+def announcement_records(current=None):
+    state = load_state()
+    current = current or now()
+    records = [announcement_record(item, current) for item in state.get("announcements") or []]
+    records.sort(key=lambda item: (parse_datetime(item["createdAt"]), item["id"]), reverse=True)
+    return records
+
+
+def announcement_record(item, current):
+    occurrence = active_occurrence(item, current)
+    record = {
+        "id": item.get("id") or "",
+        "kind": item.get("kind") or "one-shot",
+        "text": item.get("text") or "",
+        "createdAt": item.get("createdAt"),
+        "active": bool(occurrence),
+        "activeStartsAt": isoformat(occurrence["startsAt"]) if occurrence else None,
+        "activeEndsAt": isoformat(occurrence["endsAt"]) if occurrence else None,
+    }
+    if record["kind"] == "periodic":
+        record.update(
+            {
+                "frequency": item.get("frequency"),
+                "daysOfWeek": item.get("daysOfWeek") or [],
+                "startTime": item.get("startTime"),
+                "endTime": item.get("endTime"),
+                "durationMinutes": item.get("durationMinutes"),
+                "recurrenceStartsAt": item.get("recurrenceStartsAt"),
+                "recurrenceEndsAt": item.get("recurrenceEndsAt"),
+            }
+        )
+    else:
+        record.update(
+            {
+                "startsAt": item.get("startsAt"),
+                "endsAt": item.get("endsAt"),
+            }
+        )
+    return record
+
+
+def delete_announcement(announcement_id):
+    target = str(announcement_id or "").strip()
+    deleted = {"value": False}
+
+    def mutate(state):
+        kept = []
+        for item in state.get("announcements") or []:
+            if str(item.get("id") or "") == target:
+                deleted["value"] = True
+            else:
+                kept.append(item)
+        state["announcements"] = kept
+
+    update_state(mutate)
+    return deleted["value"]
 
 
 def clear_announcements():

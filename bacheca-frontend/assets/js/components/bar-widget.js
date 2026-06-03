@@ -70,8 +70,16 @@
 
     function buildSlides(data) {
         var list = [];
+        var announcements = arrayOrEmpty(data.announcements);
+        var i;
 
-        if (data.announcement && data.announcement.text) {
+        if (announcements.length) {
+            for (i = 0; i < announcements.length; i++) {
+                if (announcements[i] && announcements[i].text) {
+                    list.push({ type: "announcement", announcement: announcements[i] });
+                }
+            }
+        } else if (data.announcement && data.announcement.text) {
             list.push({ type: "announcement", announcement: data.announcement });
         }
 
@@ -195,7 +203,7 @@
             return "";
         }
         if (slide.type === "announcement") {
-            return "announcement";
+            return "announcement:" + (slide.announcement && slide.announcement.id ? slide.announcement.id : "");
         }
         if (slide.type === "countdown") {
             return "countdown";

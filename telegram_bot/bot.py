@@ -1,4 +1,6 @@
 import os
+import re
+from datetime import timedelta
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
@@ -7,6 +9,8 @@ from app.services import bar_widget, soccer
 
 
 FLOW_KEY = "bar_widget_flow"
+DURATION_RE = re.compile(r"^\s*(\d+)\s*([a-zA-Z]+)?\s*$")
+DAY_NAMES = ["lun", "mar", "mer", "gio", "ven", "sab", "dom"]
 
 
 def allowed_chat_ids():
@@ -31,10 +35,10 @@ def is_authorized(update):
 
 async def deny(update):
     if update.callback_query:
-        await update.callback_query.answer("Not authorized", show_alert=True)
+        await update.callback_query.answer("Chat non autorizzata", show_alert=True)
         return
     if update.message:
-        await update.message.reply_text("This chat is not authorized to control the bacheca. Use /my_id to see the chat ID.")
+        await update.message.reply_text("Questa chat non e autorizzata a controllare la bacheca. Usa /my_id per vedere l'ID.")
 
 
 def chat_id_text(update):
@@ -48,20 +52,20 @@ def main_keyboard():
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("Show", callback_data="show"),
-                InlineKeyboardButton("Hide", callback_data="hide"),
+                InlineKeyboardButton("👁️ Mostra", callback_data="show"),
+                InlineKeyboardButton("🙈 Nascondi", callback_data="hide"),
             ],
             [
-                InlineKeyboardButton("Announcement", callback_data="announce_menu"),
-                InlineKeyboardButton("Countdown", callback_data="countdown_menu"),
+                InlineKeyboardButton("📢 Avvisi", callback_data="announce_menu"),
+                InlineKeyboardButton("⏳ Countdown", callback_data="countdown_menu"),
             ],
             [
-                InlineKeyboardButton("Color", callback_data="color_menu"),
-                InlineKeyboardButton("Soccer", callback_data="soccer_menu"),
+                InlineKeyboardButton("🎨 Colore", callback_data="color_menu"),
+                InlineKeyboardButton("⚽ Calcio", callback_data="soccer_menu"),
             ],
             [
-                InlineKeyboardButton("Status", callback_data="status"),
-                InlineKeyboardButton("Help", callback_data="help"),
+                InlineKeyboardButton("📊 Stato", callback_data="status"),
+                InlineKeyboardButton("❓ Aiuto", callback_data="help"),
             ],
         ]
     )
@@ -70,11 +74,15 @@ def main_keyboard():
 def announcement_keyboard():
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("One-shot", callback_data="ann_one")],
-            [InlineKeyboardButton("Periodic daily", callback_data="ann_daily")],
-            [InlineKeyboardButton("Periodic weekly", callback_data="ann_weekly")],
-            [InlineKeyboardButton("Clear announcements", callback_data="ann_clear_confirm")],
-            [InlineKeyboardButton("Back", callback_data="panel")],
+            [InlineKeyboardButton("➕ Avviso temporaneo", callback_data="ann_one")],
+            [InlineKeyboardButton("🔁 Avviso giornaliero", callback_data="ann_daily")],
+            [InlineKeyboardButton("📅 Avviso settimanale", callback_data="ann_weekly")],
+            [
+                InlineKeyboardButton("📋 Vedi avvisi", callback_data="ann_list"),
+                InlineKeyboardButton("🗑️ Elimina", callback_data="ann_delete_menu"),
+            ],
+            [InlineKeyboardButton("🧹 Cancella tutti", callback_data="ann_clear_confirm")],
+            [InlineKeyboardButton("⬅️ Indietro", callback_data="panel")],
         ]
     )
 
@@ -82,9 +90,9 @@ def announcement_keyboard():
 def countdown_keyboard():
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("Set countdown", callback_data="countdown_set")],
-            [InlineKeyboardButton("Clear countdown", callback_data="countdown_clear_confirm")],
-            [InlineKeyboardButton("Back", callback_data="panel")],
+            [InlineKeyboardButton("⏱️ Imposta countdown", callback_data="countdown_set")],
+            [InlineKeyboardButton("🧹 Cancella countdown", callback_data="countdown_clear_confirm")],
+            [InlineKeyboardButton("⬅️ Indietro", callback_data="panel")],
         ]
     )
 
@@ -92,23 +100,23 @@ def countdown_keyboard():
 def color_keyboard():
     rows = [
         [
-            InlineKeyboardButton("Blue", callback_data="color:blue"),
-            InlineKeyboardButton("Green", callback_data="color:green"),
+            InlineKeyboardButton("Blu", callback_data="color:blue"),
+            InlineKeyboardButton("Verde", callback_data="color:green"),
         ],
         [
-            InlineKeyboardButton("Red", callback_data="color:red"),
-            InlineKeyboardButton("Orange", callback_data="color:orange"),
+            InlineKeyboardButton("Rosso", callback_data="color:red"),
+            InlineKeyboardButton("Arancione", callback_data="color:orange"),
         ],
         [
-            InlineKeyboardButton("Purple", callback_data="color:purple"),
-            InlineKeyboardButton("Teal", callback_data="color:teal"),
+            InlineKeyboardButton("Viola", callback_data="color:purple"),
+            InlineKeyboardButton("Petrolio", callback_data="color:teal"),
         ],
         [
-            InlineKeyboardButton("Gray", callback_data="color:gray"),
-            InlineKeyboardButton("Dark", callback_data="color:dark"),
+            InlineKeyboardButton("Grigio", callback_data="color:gray"),
+            InlineKeyboardButton("Scuro", callback_data="color:dark"),
         ],
-        [InlineKeyboardButton("Custom #RRGGBB", callback_data="color_custom")],
-        [InlineKeyboardButton("Back", callback_data="panel")],
+        [InlineKeyboardButton("🎯 Personalizzato #RRGGBB", callback_data="color_custom")],
+        [InlineKeyboardButton("⬅️ Indietro", callback_data="panel")],
     ]
     return InlineKeyboardMarkup(rows)
 
@@ -117,11 +125,11 @@ def soccer_keyboard():
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("Enable", callback_data="soccer_on"),
-                InlineKeyboardButton("Disable", callback_data="soccer_off"),
+                InlineKeyboardButton("✅ Attiva", callback_data="soccer_on"),
+                InlineKeyboardButton("⛔ Disattiva", callback_data="soccer_off"),
             ],
-            [InlineKeyboardButton("Choose competition", callback_data="soccer_comp_menu")],
-            [InlineKeyboardButton("Back", callback_data="panel")],
+            [InlineKeyboardButton("🏆 Scegli competizione", callback_data="soccer_comp_menu")],
+            [InlineKeyboardButton("⬅️ Indietro", callback_data="panel")],
         ]
     )
 
@@ -137,7 +145,7 @@ async def soccer_competition_keyboard():
             row = []
     if row:
         rows.append(row)
-    rows.append([InlineKeyboardButton("Back", callback_data="soccer_menu")])
+    rows.append([InlineKeyboardButton("⬅️ Indietro", callback_data="soccer_menu")])
     return InlineKeyboardMarkup(rows)
 
 
@@ -154,24 +162,109 @@ def confirm_keyboard(yes_data, no_data):
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("Confirm", callback_data=yes_data),
-                InlineKeyboardButton("Cancel", callback_data=no_data),
+                InlineKeyboardButton("✅ Conferma", callback_data=yes_data),
+                InlineKeyboardButton("↩️ Annulla", callback_data=no_data),
             ]
         ]
     )
+
+
+def announcement_delete_keyboard():
+    records = bar_widget.announcement_records()
+    rows = []
+    for index, record in enumerate(records):
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    announcement_button_label(record, index),
+                    callback_data="ann_del:" + record["id"],
+                )
+            ]
+        )
+    if not rows:
+        rows.append([InlineKeyboardButton("Nessun avviso da eliminare", callback_data="announce_menu")])
+    rows.append([InlineKeyboardButton("⬅️ Indietro", callback_data="announce_menu")])
+    return InlineKeyboardMarkup(rows)
+
+
+def announcement_management_keyboard():
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("➕ Nuovo", callback_data="ann_one"),
+                InlineKeyboardButton("🗑️ Elimina", callback_data="ann_delete_menu"),
+            ],
+            [InlineKeyboardButton("⬅️ Indietro", callback_data="announce_menu")],
+        ]
+    )
+
+
+def announcement_button_label(record, index):
+    prefix = "✅" if record.get("active") else "⏳"
+    text = truncate(record.get("text") or "", 28)
+    return prefix + " " + str(index + 1) + ". " + text
+
+
+def announcements_text():
+    records = bar_widget.announcement_records()
+    if not records:
+        return "📭 Non ci sono avvisi salvati."
+    lines = ["📋 Avvisi salvati", "Gli avvisi attivi ruotano nella barra, dal piu recente al meno recente.", ""]
+    for index, record in enumerate(records):
+        lines.extend(format_announcement_record(record, index))
+        lines.append("")
+    return "\n".join(lines).strip()
+
+
+def format_announcement_record(record, index):
+    status = "✅ attivo" if record.get("active") else "⏳ non attivo ora"
+    kind = "temporaneo" if record.get("kind") != "periodic" else "periodico"
+    lines = [
+        str(index + 1) + ". " + status + " - " + kind,
+        "📝 " + truncate(record.get("text") or "", 180),
+    ]
+    if record.get("kind") == "periodic":
+        lines.append("🔁 " + periodic_settings_text(record))
+    else:
+        lines.append("🕒 " + format_datetime(record.get("startsAt")) + " → " + format_datetime(record.get("endsAt")))
+        lines.append("⏱️ Durata: " + duration_between(record.get("startsAt"), record.get("endsAt")))
+    if record.get("active"):
+        lines.append("👁️ In onda fino a: " + format_datetime(record.get("activeEndsAt")))
+    return lines
+
+
+def periodic_settings_text(record):
+    frequency = "ogni giorno" if record.get("frequency") == "daily" else "settimanale"
+    days = record.get("daysOfWeek") or []
+    days_text = "tutti i giorni" if record.get("frequency") == "daily" else ", ".join([DAY_NAMES[item] for item in days if 0 <= item < len(DAY_NAMES)])
+    ending = ""
+    if record.get("endTime"):
+        ending = "fino alle " + record.get("endTime")
+    elif record.get("durationMinutes"):
+        ending = "per " + format_minutes(record.get("durationMinutes"))
+    return frequency + " (" + days_text + "), dalle " + str(record.get("startTime") or "--") + " " + ending + ", fino al " + format_datetime(record.get("recurrenceEndsAt"))
+
+
+def find_announcement_record(announcement_id):
+    for record in bar_widget.announcement_records():
+        if record.get("id") == announcement_id:
+            return record
+    return None
 
 
 def status_text():
     state = bar_widget.load_state()
     soccer_state = state.get("soccer") or {}
     countdown = state.get("countdown")
+    announcements = bar_widget.announcement_records()
+    active_count = len([item for item in announcements if item.get("active")])
     parts = [
-        "Bacheca bar panel",
-        "Visible: " + ("yes" if state.get("visible") else "no"),
-        "Color: " + str(state.get("color")),
-        "Announcements: " + str(len(state.get("announcements") or [])) + " (" + bar_widget.ANNOUNCEMENT_POLICY + ")",
-        "Countdown: " + (countdown.get("to") if countdown else "none"),
-        "Soccer: " + ("on" if soccer_state.get("enabled") else "off") + " " + str(soccer_state.get("competition") or "SA"),
+        "📟 Pannello barra Bacheca",
+        "👁️ Visibile: " + ("si" if state.get("visible") else "no"),
+        "🎨 Colore: " + str(state.get("color")),
+        "📢 Avvisi: " + str(active_count) + " attivi / " + str(len(announcements)) + " salvati",
+        "⏳ Countdown: " + (countdown.get("to") if countdown else "nessuno"),
+        "⚽ Calcio: " + ("attivo" if soccer_state.get("enabled") else "spento") + " " + str(soccer_state.get("competition") or "SA"),
     ]
     return "\n".join(parts)
 
@@ -179,17 +272,18 @@ def status_text():
 def help_text():
     return "\n".join(
         [
-            "Available commands:",
-            "/start - show this introduction",
-            "/panel - open the button panel",
-            "/my_id - show this chat ID",
-            "/show and /hide - toggle the bar",
-            "/announce Text | 2026-06-03T22:00:00+02:00 - one-shot announcement starting now",
-            "/countdown Label | 2026-06-03T20:00:00+02:00 - set a countdown",
-            "/color blue or /color #1565C0 - change the bar color",
-            "/soccer SA - select a competition",
-            "/soccer_on and /soccer_off - toggle soccer",
-            "/cancel - stop a guided flow",
+            "🧭 Comandi disponibili:",
+            "/start - introduzione e pannello",
+            "/panel - apre il pannello con i pulsanti",
+            "/my_id - mostra l'ID di questa chat",
+            "/show e /hide - mostra/nasconde la barra",
+            "/announce Testo | 2h - avviso temporaneo da ora",
+            "/announce Testo | 2026-06-03T18:00:00+02:00 | 2h - avviso temporaneo con inizio scelto",
+            "/countdown Etichetta | 2026-06-03T20:00:00+02:00 - imposta un countdown",
+            "/color blue oppure /color #1565C0 - cambia colore",
+            "/soccer SA - sceglie la competizione",
+            "/soccer_on e /soccer_off - attiva/disattiva il calcio",
+            "/cancel - interrompe una procedura guidata",
         ]
     )
 
@@ -197,9 +291,9 @@ def help_text():
 def start_text(update):
     return "\n".join(
         [
-            "Welcome to the Torrescalla Bacheca bar controller.",
-            "This bot controls the compact dashboard bar: announcements, countdowns, colors, visibility, and soccer snippets.",
-            "Your chat ID: " + chat_id_text(update),
+            "👋 Benvenuto nel controller della barra Bacheca Torrescalla.",
+            "Da qui puoi gestire avvisi, countdown, colore, visibilita e calcio.",
+            "ID di questa chat: " + chat_id_text(update),
             "",
             status_text(),
             "",
@@ -211,13 +305,13 @@ def start_text(update):
 def unauthorized_start_text(update):
     return "\n".join(
         [
-            "Welcome to the Torrescalla Bacheca bar controller.",
-            "This chat is not authorized to control the dashboard yet.",
-            "Your chat ID: " + chat_id_text(update),
-            "Ask an administrator to add this ID to TELEGRAM_ALLOWED_CHAT_IDS.",
+            "👋 Benvenuto nel controller della barra Bacheca Torrescalla.",
+            "Questa chat non e ancora autorizzata a controllare la dashboard.",
+            "ID di questa chat: " + chat_id_text(update),
+            "Chiedi a un amministratore di aggiungere questo ID a TELEGRAM_ALLOWED_CHAT_IDS.",
             "",
-            "Available commands:",
-            "/my_id - show this chat ID",
+            "Comandi disponibili:",
+            "/my_id - mostra l'ID di questa chat",
         ]
     )
 
@@ -248,8 +342,8 @@ async def panel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def my_id_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = chat_id_text(update)
-    authorized = "yes" if is_authorized(update) else "no"
-    await update.message.reply_text("Chat ID: " + chat_id + "\nAuthorized: " + authorized)
+    authorized = "si" if is_authorized(update) else "no"
+    await update.message.reply_text("🪪 ID chat: " + chat_id + "\nAutorizzata: " + authorized)
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -264,7 +358,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await deny(update)
         return
     context.user_data.pop(FLOW_KEY, None)
-    await update.message.reply_text("Cancelled.", reply_markup=main_keyboard())
+    await update.message.reply_text("↩️ Operazione annullata.", reply_markup=main_keyboard())
 
 
 async def callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -285,58 +379,78 @@ async def callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(help_text(), reply_markup=main_keyboard())
     elif data == "show":
         bar_widget.set_visible(True)
-        await query.edit_message_text("Bar shown.", reply_markup=main_keyboard())
+        await query.edit_message_text("✅ Barra mostrata.", reply_markup=main_keyboard())
     elif data == "hide":
         bar_widget.set_visible(False)
-        await query.edit_message_text("Bar hidden.", reply_markup=main_keyboard())
+        await query.edit_message_text("🙈 Barra nascosta.", reply_markup=main_keyboard())
     elif data == "announce_menu":
-        await query.edit_message_text("Choose announcement type.", reply_markup=announcement_keyboard())
+        await query.edit_message_text("📢 Gestione avvisi. Gli avvisi attivi ruotano automaticamente nella barra.", reply_markup=announcement_keyboard())
     elif data == "ann_one":
         start_flow(context, "one_shot", "text", {})
-        await query.edit_message_text("Send announcement text. Emojis are OK. Use /cancel to stop.")
+        await query.edit_message_text("📝 Scrivi il testo dell'avviso. Le emoji vanno benissimo. Usa /cancel per fermarti.")
     elif data == "ann_daily":
         start_flow(context, "periodic", "text", {"frequency": "daily", "days": [0, 1, 2, 3, 4, 5, 6]})
-        await query.edit_message_text("Send daily announcement text. It will use every day. Use /cancel to stop.")
+        await query.edit_message_text("📝 Scrivi il testo dell'avviso giornaliero. Sara valido tutti i giorni. Usa /cancel per fermarti.")
     elif data == "ann_weekly":
         start_flow(context, "periodic", "text", {"frequency": "weekly"})
-        await query.edit_message_text("Send weekly announcement text. Emojis are OK. Use /cancel to stop.")
+        await query.edit_message_text("📝 Scrivi il testo dell'avviso settimanale. Le emoji vanno benissimo. Usa /cancel per fermarti.")
+    elif data == "ann_list":
+        await query.edit_message_text(announcements_text(), reply_markup=announcement_management_keyboard())
+    elif data == "ann_delete_menu":
+        await query.edit_message_text("🗑️ Scegli l'avviso da eliminare.", reply_markup=announcement_delete_keyboard())
+    elif data.startswith("ann_del:"):
+        announcement_id = data.split(":", 1)[1]
+        record = find_announcement_record(announcement_id)
+        if not record:
+            await query.edit_message_text("Non trovo piu questo avviso.", reply_markup=announcement_keyboard())
+        else:
+            await query.edit_message_text(
+                "Eliminare questo avviso?\n\n" + "\n".join(format_announcement_record(record, 0)),
+                reply_markup=confirm_keyboard("ann_del_yes:" + announcement_id, "ann_delete_menu"),
+            )
+    elif data.startswith("ann_del_yes:"):
+        announcement_id = data.split(":", 1)[1]
+        if bar_widget.delete_announcement(announcement_id):
+            await query.edit_message_text("🗑️ Avviso eliminato.", reply_markup=announcement_keyboard())
+        else:
+            await query.edit_message_text("Non trovo piu questo avviso.", reply_markup=announcement_keyboard())
     elif data == "ann_clear_confirm":
-        await query.edit_message_text("Clear all announcements?", reply_markup=confirm_keyboard("ann_clear_yes", "announce_menu"))
+        await query.edit_message_text("🧹 Cancellare tutti gli avvisi?", reply_markup=confirm_keyboard("ann_clear_yes", "announce_menu"))
     elif data == "ann_clear_yes":
         bar_widget.clear_announcements()
-        await query.edit_message_text("Announcements cleared.", reply_markup=main_keyboard())
+        await query.edit_message_text("🧹 Avvisi cancellati.", reply_markup=main_keyboard())
     elif data == "countdown_menu":
-        await query.edit_message_text("Countdown controls.", reply_markup=countdown_keyboard())
+        await query.edit_message_text("⏳ Gestione countdown.", reply_markup=countdown_keyboard())
     elif data == "countdown_set":
         start_flow(context, "countdown", "label", {})
-        await query.edit_message_text("Send countdown label, for example: Manca. Use /cancel to stop.")
+        await query.edit_message_text("🏷️ Scrivi l'etichetta del countdown, per esempio: Manca. Usa /cancel per fermarti.")
     elif data == "countdown_clear_confirm":
-        await query.edit_message_text("Clear countdown?", reply_markup=confirm_keyboard("countdown_clear_yes", "countdown_menu"))
+        await query.edit_message_text("🧹 Cancellare il countdown?", reply_markup=confirm_keyboard("countdown_clear_yes", "countdown_menu"))
     elif data == "countdown_clear_yes":
         bar_widget.clear_countdown()
-        await query.edit_message_text("Countdown cleared.", reply_markup=main_keyboard())
+        await query.edit_message_text("🧹 Countdown cancellato.", reply_markup=main_keyboard())
     elif data == "color_menu":
-        await query.edit_message_text("Choose a safe bar color.", reply_markup=color_keyboard())
+        await query.edit_message_text("🎨 Scegli un colore sicuro per la barra.", reply_markup=color_keyboard())
     elif data.startswith("color:"):
         apply_color(data.split(":", 1)[1])
-        await query.edit_message_text("Color updated.", reply_markup=main_keyboard())
+        await query.edit_message_text("🎨 Colore aggiornato.", reply_markup=main_keyboard())
     elif data == "color_custom":
         start_flow(context, "color", "value", {})
-        await query.edit_message_text("Send a color as #RRGGBB or a preset name.")
+        await query.edit_message_text("🎯 Scrivi un colore come #RRGGBB oppure un preset.")
     elif data == "soccer_menu":
-        await query.edit_message_text("Soccer controls.", reply_markup=soccer_keyboard())
+        await query.edit_message_text("⚽ Gestione calcio.", reply_markup=soccer_keyboard())
     elif data == "soccer_on":
         bar_widget.set_soccer_enabled(True)
-        await query.edit_message_text("Soccer enabled.", reply_markup=main_keyboard())
+        await query.edit_message_text("⚽ Calcio attivato.", reply_markup=main_keyboard())
     elif data == "soccer_off":
         bar_widget.set_soccer_enabled(False)
-        await query.edit_message_text("Soccer disabled.", reply_markup=main_keyboard())
+        await query.edit_message_text("⛔ Calcio disattivato.", reply_markup=main_keyboard())
     elif data == "soccer_comp_menu":
-        await query.edit_message_text("Choose competition. The list is loaded from football-data when available.", reply_markup=await soccer_competition_keyboard())
+        await query.edit_message_text("🏆 Scegli la competizione. La lista arriva da football-data quando disponibile.", reply_markup=await soccer_competition_keyboard())
     elif data.startswith("soccer_comp:"):
         code = data.split(":", 1)[1]
         bar_widget.set_soccer_competition(code)
-        await query.edit_message_text("Competition set to " + soccer.competition_label(code) + ".", reply_markup=main_keyboard())
+        await query.edit_message_text("🏆 Competizione impostata: " + soccer.competition_label(code) + ".", reply_markup=main_keyboard())
 
 
 def start_flow(context, name, step, data):
@@ -354,7 +468,7 @@ async def flow_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     flow = context.user_data.get(FLOW_KEY)
     if not flow:
-        await update.message.reply_text("Use /panel to open the controls.", reply_markup=main_keyboard())
+        await update.message.reply_text("Usa /panel per aprire i controlli.", reply_markup=main_keyboard())
         return
 
     try:
@@ -367,7 +481,7 @@ async def flow_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif flow["name"] == "color":
             await handle_color_flow(update, context, flow)
     except Exception as error:
-        await update.message.reply_text("That did not work: " + str(error) + "\nUse /cancel to stop or send another value.")
+        await update.message.reply_text("Non ha funzionato: " + str(error) + "\nUsa /cancel per fermarti oppure invia un altro valore.")
 
 
 async def handle_one_shot_flow(update, context, flow):
@@ -376,16 +490,17 @@ async def handle_one_shot_flow(update, context, flow):
     if flow["step"] == "text":
         data["text"] = text
         flow["step"] = "starts"
-        await update.message.reply_text("Send start datetime as ISO, or send now.")
+        await update.message.reply_text("🕒 Quando deve iniziare? Scrivi ora oppure una data ISO, per esempio 2026-06-03T18:00:00+02:00.")
     elif flow["step"] == "starts":
-        data["startsAt"] = bar_widget.now() if text.lower() == "now" else bar_widget.parse_datetime(text)
-        flow["step"] = "ends"
-        await update.message.reply_text("Send end datetime as ISO. Every announcement must end.")
-    elif flow["step"] == "ends":
-        data["endsAt"] = bar_widget.parse_datetime(text)
+        data["startsAt"] = bar_widget.now() if text.lower() in ("now", "ora", "adesso") else bar_widget.parse_datetime(text)
+        flow["step"] = "duration"
+        await update.message.reply_text("⏱️ Per quanto tempo deve restare visibile? Esempi: 30m, 2h, 1d.")
+    elif flow["step"] == "duration":
+        duration = parse_duration(text)
+        data["endsAt"] = data["startsAt"] + duration
         bar_widget.add_one_shot_announcement(data["text"], data["startsAt"], data["endsAt"])
         context.user_data.pop(FLOW_KEY, None)
-        await update.message.reply_text("Announcement saved.", reply_markup=main_keyboard())
+        await update.message.reply_text("✅ Avviso salvato fino a " + format_datetime(data["endsAt"]) + ".", reply_markup=main_keyboard())
 
 
 async def handle_periodic_flow(update, context, flow):
@@ -395,24 +510,24 @@ async def handle_periodic_flow(update, context, flow):
         data["text"] = text
         if data.get("frequency") == "weekly":
             flow["step"] = "days"
-            await update.message.reply_text("Send days as numbers: 0=Mon ... 6=Sun, comma separated. Example: 0,2,4")
+            await update.message.reply_text("📅 Scrivi i giorni come numeri: 0=lun ... 6=dom, separati da virgole. Esempio: 0,2,4")
         else:
             flow["step"] = "start_time"
-            await update.message.reply_text("Send occurrence start time, for example 19:30.")
+            await update.message.reply_text("🕒 Scrivi l'orario di inizio, per esempio 19:30.")
     elif flow["step"] == "days":
         data["days"] = parse_days(text)
         flow["step"] = "start_time"
-        await update.message.reply_text("Send occurrence start time, for example 19:30.")
+        await update.message.reply_text("🕒 Scrivi l'orario di inizio, per esempio 19:30.")
     elif flow["step"] == "start_time":
         data["startTime"] = bar_widget.format_time(text)
         flow["step"] = "duration"
-        await update.message.reply_text("Send occurrence duration in minutes, for example 90.")
+        await update.message.reply_text("⏱️ Quanto dura ogni occorrenza? Esempi: 90m, 2h.")
     elif flow["step"] == "duration":
-        data["durationMinutes"] = int(text)
+        data["durationMinutes"] = duration_minutes(parse_duration(text))
         if data["durationMinutes"] <= 0:
-            raise ValueError("Duration must be positive")
+            raise ValueError("La durata deve essere positiva")
         flow["step"] = "recurrence_ends"
-        await update.message.reply_text("Send recurrence end datetime as ISO.")
+        await update.message.reply_text("📆 Fino a quando si ripete? Scrivi una data ISO.")
     elif flow["step"] == "recurrence_ends":
         data["recurrenceEndsAt"] = bar_widget.parse_datetime(text)
         bar_widget.add_periodic_announcement(
@@ -424,7 +539,7 @@ async def handle_periodic_flow(update, context, flow):
             duration_minutes=data["durationMinutes"],
         )
         context.user_data.pop(FLOW_KEY, None)
-        await update.message.reply_text("Periodic announcement saved.", reply_markup=main_keyboard())
+        await update.message.reply_text("✅ Avviso periodico salvato.", reply_markup=main_keyboard())
 
 
 async def handle_countdown_flow(update, context, flow):
@@ -433,23 +548,44 @@ async def handle_countdown_flow(update, context, flow):
     if flow["step"] == "label":
         data["label"] = text
         flow["step"] = "target"
-        await update.message.reply_text("Send countdown target datetime as ISO.")
+        await update.message.reply_text("🎯 Scrivi la data/ora di arrivo in formato ISO.")
     elif flow["step"] == "target":
         target = bar_widget.parse_datetime(text)
         bar_widget.set_countdown(data["label"], target)
         context.user_data.pop(FLOW_KEY, None)
-        await update.message.reply_text("Countdown saved.", reply_markup=main_keyboard())
+        await update.message.reply_text("✅ Countdown salvato.", reply_markup=main_keyboard())
 
 
 async def handle_color_flow(update, context, flow):
     text = clean_message(update)
     apply_color(text)
     context.user_data.pop(FLOW_KEY, None)
-    await update.message.reply_text("Color updated.", reply_markup=main_keyboard())
+    await update.message.reply_text("🎨 Colore aggiornato.", reply_markup=main_keyboard())
 
 
 def clean_message(update):
     return str(update.message.text or "").strip()
+
+
+def parse_duration(text):
+    match = DURATION_RE.match(str(text or "").strip().lower())
+    if not match:
+        raise ValueError("Durata non valida. Esempi: 30m, 2h, 1d")
+    amount = int(match.group(1))
+    unit = match.group(2) or "m"
+    if amount <= 0:
+        raise ValueError("La durata deve essere positiva")
+    if unit in ("m", "min", "mins", "minuto", "minuti", "minute", "minutes"):
+        return timedelta(minutes=amount)
+    if unit in ("h", "ora", "ore", "hour", "hours"):
+        return timedelta(hours=amount)
+    if unit in ("d", "g", "giorno", "giorni", "day", "days"):
+        return timedelta(days=amount)
+    raise ValueError("Unita non valida. Usa minuti, ore o giorni: 30m, 2h, 1d")
+
+
+def duration_minutes(value):
+    return int(value.total_seconds() / 60)
 
 
 def parse_days(text):
@@ -460,12 +596,51 @@ def parse_days(text):
             continue
         day = int(cleaned)
         if day < 0 or day > 6:
-            raise ValueError("Days must be 0-6")
+            raise ValueError("I giorni devono essere numeri da 0 a 6")
         if day not in days:
             days.append(day)
     if not days:
-        raise ValueError("At least one day is required")
+        raise ValueError("Serve almeno un giorno")
     return sorted(days)
+
+
+def truncate(value, max_length):
+    text = str(value or "").replace("\n", " ").strip()
+    if len(text) <= max_length:
+        return text
+    return text[: max_length - 3] + "..."
+
+
+def format_datetime(value):
+    if not value:
+        return "--"
+    try:
+        parsed = bar_widget.parse_datetime(value)
+    except Exception:
+        return str(value)
+    return parsed.strftime("%d/%m %H:%M")
+
+
+def duration_between(start_value, end_value):
+    try:
+        delta = bar_widget.parse_datetime(end_value) - bar_widget.parse_datetime(start_value)
+    except Exception:
+        return "--"
+    return format_minutes(duration_minutes(delta))
+
+
+def format_minutes(value):
+    try:
+        minutes = int(value)
+    except (TypeError, ValueError):
+        return "--"
+    if minutes % 1440 == 0:
+        days = int(minutes / 1440)
+        return str(days) + (" giorno" if days == 1 else " giorni")
+    if minutes % 60 == 0:
+        hours = int(minutes / 60)
+        return str(hours) + (" ora" if hours == 1 else " ore")
+    return str(minutes) + " minuti"
 
 
 def apply_color(value):
@@ -477,7 +652,7 @@ async def show_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await deny(update)
         return
     bar_widget.set_visible(True)
-    await update.message.reply_text("Bar shown.", reply_markup=main_keyboard())
+    await update.message.reply_text("✅ Barra mostrata.", reply_markup=main_keyboard())
 
 
 async def hide_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -485,7 +660,7 @@ async def hide_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await deny(update)
         return
     bar_widget.set_visible(False)
-    await update.message.reply_text("Bar hidden.", reply_markup=main_keyboard())
+    await update.message.reply_text("🙈 Barra nascosta.", reply_markup=main_keyboard())
 
 
 async def color_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -494,14 +669,14 @@ async def color_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     value = " ".join(context.args).strip()
     if not value:
-        await update.message.reply_text("Usage: /color blue or /color #1565C0")
+        await update.message.reply_text("Uso: /color blue oppure /color #1565C0")
         return
     try:
         apply_color(value)
     except ValueError as error:
         await update.message.reply_text(str(error))
         return
-    await update.message.reply_text("Color updated.", reply_markup=main_keyboard())
+    await update.message.reply_text("🎨 Colore aggiornato.", reply_markup=main_keyboard())
 
 
 async def announce_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -510,15 +685,26 @@ async def announce_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     raw = " ".join(context.args).strip()
     if "|" not in raw:
-        await update.message.reply_text("Usage: /announce Text | 2026-06-03T22:00:00+02:00")
+        await update.message.reply_text("Uso: /announce Testo | 2h\nOppure: /announce Testo | 2026-06-03T18:00:00+02:00 | 2h")
         return
-    text, end_text = [part.strip() for part in raw.split("|", 1)]
+    parts = [part.strip() for part in raw.split("|")]
     try:
-        bar_widget.add_one_shot_announcement(text, bar_widget.now(), bar_widget.parse_datetime(end_text))
+        if len(parts) == 2:
+            text = parts[0]
+            starts_at = bar_widget.now()
+            duration = parse_duration(parts[1])
+        elif len(parts) == 3:
+            text = parts[0]
+            starts_at = bar_widget.now() if parts[1].lower() in ("now", "ora", "adesso") else bar_widget.parse_datetime(parts[1])
+            duration = parse_duration(parts[2])
+        else:
+            raise ValueError("Formato non valido")
+        ends_at = starts_at + duration
+        bar_widget.add_one_shot_announcement(text, starts_at, ends_at)
     except Exception as error:
         await update.message.reply_text(str(error))
         return
-    await update.message.reply_text("Announcement saved.", reply_markup=main_keyboard())
+    await update.message.reply_text("✅ Avviso salvato fino a " + format_datetime(ends_at) + ".", reply_markup=main_keyboard())
 
 
 async def countdown_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -527,7 +713,7 @@ async def countdown_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     raw = " ".join(context.args).strip()
     if not raw:
-        await update.message.reply_text("Usage: /countdown Label | 2026-06-03T20:00:00+02:00")
+        await update.message.reply_text("Uso: /countdown Etichetta | 2026-06-03T20:00:00+02:00")
         return
     if "|" in raw:
         label, target_text = [part.strip() for part in raw.split("|", 1)]
@@ -539,7 +725,7 @@ async def countdown_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as error:
         await update.message.reply_text(str(error))
         return
-    await update.message.reply_text("Countdown saved.", reply_markup=main_keyboard())
+    await update.message.reply_text("✅ Countdown salvato.", reply_markup=main_keyboard())
 
 
 async def soccer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -548,10 +734,10 @@ async def soccer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     code = " ".join(context.args).strip()
     if not code:
-        await update.message.reply_text("Usage: /soccer SA", reply_markup=await soccer_competition_keyboard())
+        await update.message.reply_text("Uso: /soccer SA", reply_markup=await soccer_competition_keyboard())
         return
     bar_widget.set_soccer_competition(code)
-    await update.message.reply_text("Competition set to " + soccer.competition_label(code) + ".", reply_markup=main_keyboard())
+    await update.message.reply_text("🏆 Competizione impostata: " + soccer.competition_label(code) + ".", reply_markup=main_keyboard())
 
 
 async def soccer_on_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -559,7 +745,7 @@ async def soccer_on_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await deny(update)
         return
     bar_widget.set_soccer_enabled(True)
-    await update.message.reply_text("Soccer enabled.", reply_markup=main_keyboard())
+    await update.message.reply_text("⚽ Calcio attivato.", reply_markup=main_keyboard())
 
 
 async def soccer_off_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -567,7 +753,7 @@ async def soccer_off_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await deny(update)
         return
     bar_widget.set_soccer_enabled(False)
-    await update.message.reply_text("Soccer disabled.", reply_markup=main_keyboard())
+    await update.message.reply_text("⛔ Calcio disattivato.", reply_markup=main_keyboard())
 
 
 def build_application():
