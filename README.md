@@ -69,10 +69,10 @@ with escaped `\n` characters or as quoted PEM text.
 
 The horizontal bar between weather forecast and menu is owned by the backend at
 `/api/bar-widget`. The browser only polls this same-origin endpoint every 12
-seconds; it never talks to Telegram or soccer APIs. State is stored as JSON in
-`.cache/bar-widget-state.json` by default. When multiple announcements are
-active, the backend returns all of them in deterministic newest-first order and
-the frontend rotates them as separate slides.
+seconds; it never talks to Telegram, soccer, or basketball APIs. State is stored
+as JSON in `.cache/bar-widget-state.json` by default. When multiple
+announcements are active, the backend returns all of them in deterministic
+newest-first order and the frontend rotates them as separate slides.
 
 Run the controller bot as a separate process:
 
@@ -93,7 +93,8 @@ bot refuses to start; chats not in the list cannot modify state.
 Use `/start` for an introduction and `/panel` for the main inline-button panel.
 Buttons cover show/hide, announcement creation, active announcement listing,
 single-announcement deletion, countdowns, color presets/custom colors, soccer
-enable/disable, competition selection, and confirmation for destructive actions.
+and basketball enable/disable, competition selection, and confirmation for
+destructive actions.
 `/my_id` shows the current chat ID and is the only command available to
 unauthorized chats. `/cancel` stops a guided flow and `/help` shows shortcuts.
 
@@ -111,6 +112,9 @@ Raw command shortcuts:
 /soccer SA
 /soccer_on
 /soccer_off
+/basketball 12 2025-2026
+/basketball_on
+/basketball_off
 ```
 
 Every announcement still has an end time internally. For one-shot announcements,
@@ -156,6 +160,63 @@ the other side fills the remaining slots; if no matches are available, the bar
 shows a short empty message. Team crests or flags are served through the
 same-origin `/api/soccer/badge` proxy and cached under `.cache/soccer-badges/`;
 the browser does not call football-data image URLs directly.
+
+## Basketball
+
+Basketball is optional and uses TheSportsDB by default. TheSportsDB v1 has a
+public free key path (`123`), so `BACHECA_BASKETBALL_API_TOKEN` can stay blank
+unless you have a premium TheSportsDB key.
+
+```env
+BACHECA_BASKETBALL_PROVIDER=thesportsdb
+BACHECA_BASKETBALL_API_TOKEN=
+BACHECA_BASKETBALL_BASE_URL=https://www.thesportsdb.com/api/v1/json
+BACHECA_BASKETBALL_CACHE_PATH=.cache/basketball-cache.json
+BACHECA_BASKETBALL_BADGE_CACHE_DIR=.cache/basketball-badges
+BACHECA_BASKETBALL_CACHE_TTL_MS=1800000
+BACHECA_BASKETBALL_LOOKBACK_DAYS=30
+BACHECA_BASKETBALL_LOOKAHEAD_DAYS=30
+BACHECA_BASKETBALL_MAX_ITEMS=4
+BACHECA_BASKETBALL_DEFAULT_SEASON=
+```
+
+Use the Telegram panel button `🏀 Basket` to enable/disable the module, choose a
+competition, or set a season. The raw shortcut is:
+
+```text
+/basketball <league_id> [season]
+```
+
+Season format is usually `YYYY-YYYY`, for example `2025-2026`. If
+`BACHECA_BASKETBALL_DEFAULT_SEASON` and the saved season are blank, the backend
+computes the current European-style season automatically.
+
+The competition picker calls TheSportsDB `search_all_leagues.php?s=Basketball`
+and merges the result with a small fallback list for common competitions such as
+NBA, Italian Lega Basket, Spanish Liga ACB, Basketball Champions League,
+EuroCup, ABA League, Australian NBL, and Turkish BSL. The list is cached in
+`.cache/basketball-cache.json`.
+
+TheSportsDB games are fetched from the recent/upcoming league schedule endpoints
+and filtered locally to the configured 30-day lookback/lookahead window. The bar
+shows whatever the provider returns, up to 4 cards: ideally 2 recent results and
+2 upcoming/live games, filling missing slots from either side. On the free key,
+TheSportsDB may return fewer cards than API-SPORTS for some leagues.
+
+Team logos are served through the same-origin `/api/basketball/badge` proxy and
+cached under `.cache/basketball-badges/`. Only safe
+`https://www.thesportsdb.com/...`, `https://r2.thesportsdb.com/...`, and
+API-SPORTS media URLs are accepted, so the browser still calls only same-origin
+dashboard APIs plus Open-Meteo weather.
+
+API-SPORTS remains available as a fallback provider if you want broader/richer
+match cards and have a key:
+
+```env
+BACHECA_BASKETBALL_PROVIDER=api-sports
+BACHECA_BASKETBALL_API_TOKEN=your-api-sports-token
+BACHECA_BASKETBALL_BASE_URL=https://v1.basketball.api-sports.io
+```
 
 ## Photos
 

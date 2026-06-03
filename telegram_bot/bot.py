@@ -5,7 +5,7 @@ from datetime import timedelta
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
-from app.services import bar_widget, soccer
+from app.services import bar_widget, basketball, soccer
 
 
 FLOW_KEY = "bar_widget_flow"
@@ -64,7 +64,10 @@ def main_keyboard():
                 InlineKeyboardButton("⚽ Calcio", callback_data="soccer_menu"),
             ],
             [
+                InlineKeyboardButton("🏀 Basket", callback_data="basketball_menu"),
                 InlineKeyboardButton("📊 Stato", callback_data="status"),
+            ],
+            [
                 InlineKeyboardButton("❓ Aiuto", callback_data="help"),
             ],
         ]
@@ -134,6 +137,20 @@ def soccer_keyboard():
     )
 
 
+def basketball_keyboard():
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("✅ Attiva", callback_data="basketball_on"),
+                InlineKeyboardButton("⛔ Disattiva", callback_data="basketball_off"),
+            ],
+            [InlineKeyboardButton("🏆 Scegli competizione", callback_data="basketball_comp_menu")],
+            [InlineKeyboardButton("📅 Imposta stagione", callback_data="basketball_season_set")],
+            [InlineKeyboardButton("⬅️ Indietro", callback_data="panel")],
+        ]
+    )
+
+
 async def soccer_competition_keyboard():
     rows = []
     row = []
@@ -146,6 +163,27 @@ async def soccer_competition_keyboard():
     if row:
         rows.append(row)
     rows.append([InlineKeyboardButton("⬅️ Indietro", callback_data="soccer_menu")])
+    return InlineKeyboardMarkup(rows)
+
+
+async def basketball_competition_keyboard():
+    rows = []
+    row = []
+    state = bar_widget.load_state()
+    basketball_state = state.get("basketball") or {}
+    season = basketball_state.get("season") or basketball.default_season()
+    choices = await basketball.load_competition_choices(season)
+    for choice in choices:
+        row.append(InlineKeyboardButton(competition_button_label(choice), callback_data="basketball_comp:" + choice["code"]))
+        if len(row) == 2:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    if not rows:
+        rows.append([InlineKeyboardButton("Nessuna competizione trovata", callback_data="basketball_menu")])
+    rows.append([InlineKeyboardButton("📅 Cambia stagione", callback_data="basketball_season_set")])
+    rows.append([InlineKeyboardButton("⬅️ Indietro", callback_data="basketball_menu")])
     return InlineKeyboardMarkup(rows)
 
 
@@ -255,9 +293,11 @@ def find_announcement_record(announcement_id):
 def status_text():
     state = bar_widget.load_state()
     soccer_state = state.get("soccer") or {}
+    basketball_state = state.get("basketball") or {}
     countdown = state.get("countdown")
     announcements = bar_widget.announcement_records()
     active_count = len([item for item in announcements if item.get("active")])
+    basketball_season = basketball_state.get("season") or basketball.default_season()
     parts = [
         "📟 Pannello barra Bacheca",
         "👁️ Visibile: " + ("si" if state.get("visible") else "no"),
@@ -265,6 +305,7 @@ def status_text():
         "📢 Avvisi: " + str(active_count) + " attivi / " + str(len(announcements)) + " salvati",
         "⏳ Countdown: " + (countdown.get("to") if countdown else "nessuno"),
         "⚽ Calcio: " + ("attivo" if soccer_state.get("enabled") else "spento") + " " + str(soccer_state.get("competition") or "SA"),
+        "🏀 Basket: " + ("attivo" if basketball_state.get("enabled") else "spento") + " " + str(basketball_state.get("competition") or "-") + " stagione " + basketball_season,
     ]
     return "\n".join(parts)
 
@@ -283,6 +324,8 @@ def help_text():
             "/color blue oppure /color #1565C0 - cambia colore",
             "/soccer SA - sceglie la competizione",
             "/soccer_on e /soccer_off - attiva/disattiva il calcio",
+            "/basketball 12 2025-2026 - sceglie lega basket e stagione",
+            "/basketball_on e /basketball_off - attiva/disattiva il basket",
             "/cancel - interrompe una procedura guidata",
         ]
     )
@@ -292,7 +335,7 @@ def start_text(update):
     return "\n".join(
         [
             "👋 Benvenuto nel controller della barra Bacheca Torrescalla.",
-            "Da qui puoi gestire avvisi, countdown, colore, visibilita e calcio.",
+            "Da qui puoi gestire avvisi, countdown, colore, visibilita, calcio e basket.",
             "ID di questa chat: " + chat_id_text(update),
             "",
             status_text(),
@@ -451,6 +494,26 @@ async def callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         code = data.split(":", 1)[1]
         bar_widget.set_soccer_competition(code)
         await query.edit_message_text("🏆 Competizione impostata: " + soccer.competition_label(code) + ".", reply_markup=main_keyboard())
+    elif data == "basketball_menu":
+        await query.edit_message_text("🏀 Gestione basket.", reply_markup=basketball_keyboard())
+    elif data == "basketball_on":
+        bar_widget.set_basketball_enabled(True)
+        await query.edit_message_text("🏀 Basket attivato.", reply_markup=main_keyboard())
+    elif data == "basketball_off":
+        bar_widget.set_basketball_enabled(False)
+        await query.edit_message_text("⛔ Basket disattivato.", reply_markup=main_keyboard())
+    elif data == "basketball_comp_menu":
+        await query.edit_message_text("🏆 Scegli la competizione basket. La lista arriva dal provider configurato quando disponibile.", reply_markup=await basketball_competition_keyboard())
+    elif data.startswith("basketball_comp:"):
+        code = data.split(":", 1)[1]
+        state = bar_widget.load_state()
+        basketball_state = state.get("basketball") or {}
+        season = basketball_state.get("season") or basketball.default_season()
+        bar_widget.set_basketball_competition(code, season)
+        await query.edit_message_text("🏆 Competizione basket impostata: " + basketball.competition_label(code, season) + " (" + season + ").", reply_markup=main_keyboard())
+    elif data == "basketball_season_set":
+        start_flow(context, "basketball_season", "value", {})
+        await query.edit_message_text("📅 Scrivi la stagione basket, per esempio 2025-2026. Usa /cancel per fermarti.")
 
 
 def start_flow(context, name, step, data):
@@ -480,6 +543,8 @@ async def flow_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await handle_countdown_flow(update, context, flow)
         elif flow["name"] == "color":
             await handle_color_flow(update, context, flow)
+        elif flow["name"] == "basketball_season":
+            await handle_basketball_season_flow(update, context, flow)
     except Exception as error:
         await update.message.reply_text("Non ha funzionato: " + str(error) + "\nUsa /cancel per fermarti oppure invia un altro valore.")
 
@@ -561,6 +626,15 @@ async def handle_color_flow(update, context, flow):
     apply_color(text)
     context.user_data.pop(FLOW_KEY, None)
     await update.message.reply_text("🎨 Colore aggiornato.", reply_markup=main_keyboard())
+
+
+async def handle_basketball_season_flow(update, context, flow):
+    text = clean_message(update)
+    if not text:
+        raise ValueError("Scrivi una stagione, per esempio 2025-2026")
+    bar_widget.set_basketball_season(text)
+    context.user_data.pop(FLOW_KEY, None)
+    await update.message.reply_text("📅 Stagione basket impostata: " + text + ".", reply_markup=basketball_keyboard())
 
 
 def clean_message(update):
@@ -756,6 +830,37 @@ async def soccer_off_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await update.message.reply_text("⛔ Calcio disattivato.", reply_markup=main_keyboard())
 
 
+async def basketball_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_authorized(update):
+        await deny(update)
+        return
+    args = context.args or []
+    if not args:
+        await update.message.reply_text("Uso: /basketball <league_id> [stagione]\nEsempio: /basketball 12 2025-2026", reply_markup=await basketball_competition_keyboard())
+        return
+    code = str(args[0]).strip()
+    season = str(args[1]).strip() if len(args) > 1 else ""
+    selected_season = season or (bar_widget.load_state().get("basketball") or {}).get("season") or basketball.default_season()
+    bar_widget.set_basketball_competition(code, selected_season)
+    await update.message.reply_text("🏆 Competizione basket impostata: " + basketball.competition_label(code, selected_season) + " (" + selected_season + ").", reply_markup=main_keyboard())
+
+
+async def basketball_on_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_authorized(update):
+        await deny(update)
+        return
+    bar_widget.set_basketball_enabled(True)
+    await update.message.reply_text("🏀 Basket attivato.", reply_markup=main_keyboard())
+
+
+async def basketball_off_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_authorized(update):
+        await deny(update)
+        return
+    bar_widget.set_basketball_enabled(False)
+    await update.message.reply_text("⛔ Basket disattivato.", reply_markup=main_keyboard())
+
+
 def build_application():
     token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     if not token:
@@ -777,6 +882,9 @@ def build_application():
     app.add_handler(CommandHandler("soccer", soccer_command))
     app.add_handler(CommandHandler("soccer_on", soccer_on_command))
     app.add_handler(CommandHandler("soccer_off", soccer_off_command))
+    app.add_handler(CommandHandler("basketball", basketball_command))
+    app.add_handler(CommandHandler("basketball_on", basketball_on_command))
+    app.add_handler(CommandHandler("basketball_off", basketball_off_command))
     app.add_handler(CallbackQueryHandler(callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, flow_message))
     return app

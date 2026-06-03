@@ -91,18 +91,30 @@
             list.push(buildSoccerSlide(data.soccer));
         }
 
+        if (data.basketball && data.basketball.enabled) {
+            list.push(buildBasketballSlide(data.basketball));
+        }
+
         return list;
     }
 
     function buildSoccerSlide(soccer) {
+        return buildSportSlide("soccer", "Calcio", soccer, "Calcio non disponibile");
+    }
+
+    function buildBasketballSlide(basketball) {
+        return buildSportSlide("basketball", "Basket", basketball, "Basket non disponibile");
+    }
+
+    function buildSportSlide(type, title, sport, unavailableText) {
         var matches = [];
-        var fixtures = arrayOrEmpty(soccer.fixtures);
-        var results = arrayOrEmpty(soccer.results);
+        var fixtures = arrayOrEmpty(sport.fixtures);
+        var results = arrayOrEmpty(sport.results);
         var liveMatches = [];
         var futureMatches = [];
         var i;
 
-        if (soccer.available) {
+        if (sport.available) {
             for (i = 0; i < fixtures.length; i++) {
                 if (fixtures[i] && fixtures[i].live) {
                     liveMatches.push(fixtures[i]);
@@ -123,10 +135,11 @@
         }
 
         return {
-            type: "soccer",
-            soccer: soccer,
+            type: type,
+            title: title,
+            sport: sport,
             matches: matches,
-            text: soccer.available ? "Nessuna partita in evidenza" : soccer.message || "Calcio non disponibile"
+            text: sport.available ? "Nessuna partita in evidenza" : sport.message || unavailableText
         };
     }
 
@@ -154,7 +167,9 @@
         } else if (slide.type === "countdown") {
             currentContent.appendChild(createCountdownSlide(slide.countdown));
         } else if (slide.type === "soccer") {
-            currentContent.appendChild(createSoccerSlide(slide));
+            currentContent.appendChild(createSportSlide(slide));
+        } else if (slide.type === "basketball") {
+            currentContent.appendChild(createSportSlide(slide));
         } else {
             currentContent.appendChild(createMessageSlide("", slide.text || "Bacheca aggiornata"));
         }
@@ -211,6 +226,9 @@
         if (slide.type === "soccer") {
             return "soccer";
         }
+        if (slide.type === "basketball") {
+            return "basketball";
+        }
         return slide.type || "";
     }
 
@@ -253,16 +271,17 @@
         return item;
     }
 
-    function createSoccerSlide(slide) {
-        var item = dom.create("div", "bar-widget-slide bar-widget-soccer-slide");
+    function createSportSlide(slide) {
+        var item = dom.create("div", "bar-widget-slide bar-widget-soccer-slide bar-widget-" + slide.type + "-slide");
         var header = dom.create("div", "bar-widget-soccer-header");
         var list = dom.create("div", "bar-widget-soccer-match-list");
         var matches = arrayOrEmpty(slide.matches);
+        var sport = slide.sport || {};
         var i;
 
-        header.appendChild(dom.create("span", "bar-widget-label", "Calcio"));
-        if (slide.soccer && (slide.soccer.label || slide.soccer.competition)) {
-            header.appendChild(dom.create("strong", "bar-widget-soccer-title", slide.soccer.label || slide.soccer.competition));
+        header.appendChild(dom.create("span", "bar-widget-label", slide.title || "Sport"));
+        if (sport.label || sport.competition) {
+            header.appendChild(dom.create("strong", "bar-widget-soccer-title", sport.label || sport.competition));
         }
         item.appendChild(header);
 
@@ -272,35 +291,35 @@
         }
 
         for (i = 0; i < matches.length; i++) {
-            list.appendChild(createSoccerMatchCard(matches[i]));
+            list.appendChild(createSportMatchCard(matches[i]));
         }
         item.appendChild(list);
         return item;
     }
 
-    function createSoccerMatchCard(slide) {
+    function createSportMatchCard(slide) {
         var item = dom.create("div", "bar-widget-soccer-card");
         var match = slide.match || {};
         var top = dom.create("div", "bar-widget-soccer-card-top");
         var middle = dom.create("div", "bar-widget-soccer-card-middle");
         var scoreBlock = dom.create("div", "bar-widget-soccer-score-block");
 
-        top.appendChild(dom.create("span", "bar-widget-soccer-card-label", slide.label || "Calcio"));
-        top.appendChild(dom.create("strong", "bar-widget-soccer-card-date", soccerDateTime(match)));
+        top.appendChild(dom.create("span", "bar-widget-soccer-card-label", slide.label || "Sport"));
+        top.appendChild(dom.create("strong", "bar-widget-soccer-card-date", sportDateTime(match)));
 
-        scoreBlock.appendChild(dom.create("strong", "bar-widget-soccer-card-score", soccerScore(match)));
-        scoreBlock.appendChild(dom.create("span", match.live ? "bar-widget-soccer-live" : "bar-widget-soccer-status", soccerStatus(match)));
+        scoreBlock.appendChild(dom.create("strong", "bar-widget-soccer-card-score", sportScore(match)));
+        scoreBlock.appendChild(dom.create("span", match.live ? "bar-widget-soccer-live" : "bar-widget-soccer-status", sportStatus(match)));
 
-        middle.appendChild(createSoccerTeamCard(match.home, "home"));
+        middle.appendChild(createSportTeamCard(match.home, "home"));
         middle.appendChild(scoreBlock);
-        middle.appendChild(createSoccerTeamCard(match.away, "away"));
+        middle.appendChild(createSportTeamCard(match.away, "away"));
 
         item.appendChild(top);
         item.appendChild(middle);
         return item;
     }
 
-    function createSoccerTeamCard(team, side) {
+    function createSportTeamCard(team, side) {
         var data = team || {};
         var root = dom.create("div", "bar-widget-soccer-team-card bar-widget-soccer-team-" + side);
         var visual = dom.create("div", "bar-widget-soccer-team-visual");
@@ -327,7 +346,7 @@
         return root;
     }
 
-    function soccerDateTime(match) {
+    function sportDateTime(match) {
         var date = match && match.displayDate ? match.displayDate : "";
         var time = match && match.displayTime ? match.displayTime : "";
         if (!date && match && match.dateLabel) {
@@ -339,20 +358,29 @@
         return date || time || "--";
     }
 
-    function soccerScore(match) {
+    function sportScore(match) {
         if (match && match.score) {
             return String(match.score.home) + "-" + String(match.score.away);
         }
         return "vs";
     }
 
-    function soccerStatus(match) {
+    function sportStatus(match) {
         if (!match) {
             return "";
         }
         if (match.live) {
             var minute = liveMinute(match);
-            return minute ? "LIVE " + minute : "LIVE";
+            if (minute) {
+                return "LIVE " + minute;
+            }
+            if (match.period) {
+                return "LIVE " + match.period;
+            }
+            if (match.statusLabel && match.statusLabel !== "LIVE") {
+                return "LIVE " + match.statusLabel;
+            }
+            return "LIVE";
         }
         if (match.kind === "result") {
             return "Risultato";
