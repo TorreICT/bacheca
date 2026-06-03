@@ -240,8 +240,8 @@
         item.appendChild(text);
         activeFitItems.push({
             element: text,
-            max: 34,
-            min: 18
+            max: 40,
+            min: 20
         });
         return item;
     }
@@ -265,8 +265,8 @@
         item.appendChild(message);
         activeFitItems.push({
             element: message,
-            max: 32,
-            min: 16
+            max: 38,
+            min: 18
         });
         return item;
     }

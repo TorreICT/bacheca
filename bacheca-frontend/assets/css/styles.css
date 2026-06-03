@@ -42,7 +42,7 @@ p {
 }
 
 .dashboard.has-bar-widget {
-    grid-template-rows: 150px 112px 96px minmax(0, 1fr);
+    grid-template-rows: 150px 112px 118px minmax(0, 1fr);
 }
 
 .dashboard-header,
@@ -227,7 +227,7 @@ p {
     grid-row: 3;
     min-width: 0;
     min-height: 0;
-    padding: 4px 8px;
+    padding: 6px 10px;
     overflow: hidden;
     background: #1565c0;
     display: flex;
@@ -1273,7 +1273,7 @@ p {
     width: 100%;
     height: 100%;
     min-width: 0;
-    padding: 4px 6px;
+    padding: 6px 8px;
     border-radius: 8px;
     background: rgba(0, 0, 0, 0.2);
     display: flex;
@@ -1287,7 +1287,7 @@ p {
 .bar-widget-label {
     flex: 0 0 auto;
     color: rgba(255, 255, 255, 0.78);
-    font-size: 15px;
+    font-size: 17px;
     font-weight: 700;
     line-height: 1;
     text-transform: uppercase;
@@ -1304,7 +1304,7 @@ p {
     display: block;
     min-width: 0;
     color: #ffffff;
-    font-size: 34px;
+    font-size: 40px;
     font-weight: 700;
     line-height: 1.18;
     padding-bottom: 2px;
@@ -1314,7 +1314,7 @@ p {
 }
 
 .bar-widget-countdown-value {
-    font-size: 32px;
+    font-size: 38px;
 }
 
 .bar-widget-soccer-slide {
@@ -1344,7 +1344,7 @@ p {
 .bar-widget-soccer-title {
     min-width: 0;
     color: #ffffff;
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 700;
     line-height: 1;
     white-space: nowrap;
@@ -1370,8 +1370,8 @@ p {
 .bar-widget-soccer-card {
     flex: 1 1 0;
     min-width: 0;
-    max-width: 270px;
-    padding: 5px 7px;
+    max-width: 300px;
+    padding: 7px 9px;
     border-radius: 7px;
     background: rgba(255, 255, 255, 0.08);
     display: flex;
@@ -1401,7 +1401,7 @@ p {
 .bar-widget-soccer-card-label {
     flex: 0 1 auto;
     color: rgba(255, 255, 255, 0.76);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     line-height: 1;
     text-transform: uppercase;
@@ -1413,7 +1413,7 @@ p {
 .bar-widget-soccer-card-date {
     flex: 0 0 auto;
     color: #ffffff;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
     line-height: 1;
     white-space: nowrap;
@@ -1446,8 +1446,8 @@ p {
 }
 
 .bar-widget-soccer-team-visual {
-    width: 28px;
-    height: 28px;
+    width: 34px;
+    height: 34px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1456,8 +1456,8 @@ p {
 
 .bar-widget-soccer-team-badge {
     display: block;
-    max-width: 28px;
-    max-height: 28px;
+    max-width: 34px;
+    max-height: 34px;
     object-fit: contain;
 }
 
@@ -1468,7 +1468,7 @@ p {
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.14);
     color: #ffffff;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     line-height: 1;
 }
@@ -1480,7 +1480,7 @@ p {
 .bar-widget-soccer-team-abbr {
     max-width: 100%;
     color: #ffffff;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     line-height: 1;
     white-space: nowrap;
@@ -1490,7 +1490,7 @@ p {
 
 .bar-widget-soccer-score-block {
     flex: 0 0 auto;
-    min-width: 52px;
+    min-width: 60px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1503,7 +1503,7 @@ p {
 
 .bar-widget-soccer-card-score {
     color: #ffffff;
-    font-size: 24px;
+    font-size: 29px;
     font-weight: 700;
     line-height: 1;
     white-space: nowrap;
@@ -1512,7 +1512,7 @@ p {
 .bar-widget-soccer-live,
 .bar-widget-soccer-status {
     color: rgba(255, 255, 255, 0.76);
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
     line-height: 1;
     text-transform: uppercase;
@@ -1528,7 +1528,7 @@ p {
 
 .bar-widget-soccer-message {
     color: #ffffff;
-    font-size: 24px;
+    font-size: 29px;
     font-weight: 700;
     line-height: 1.18;
     white-space: nowrap;
