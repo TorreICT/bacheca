@@ -5,11 +5,13 @@
             menu: "/api/menu",
             calendar: "/api/calendar",
             pizzaIndex: "/api/pizza-index",
-            randomPhoto: "/api/random-photo"
+            randomPhoto: "/api/random-photo",
+            barWidget: "/api/bar-widget"
         },
         refreshMs: 15 * 60 * 1000,
+        barWidgetRefreshMs: 12 * 1000,
         requestTimeoutMs: 8000,
-        maxEvents: 4,
+        maxEvents: 5,
         maxEventsWithBirthday: 3,
         mealIconBasePath: "assets/img/pasti/",
         birthdayIconPath: "assets/img/birthday.svg",

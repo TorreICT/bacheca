@@ -41,6 +41,10 @@ p {
     overflow: hidden;
 }
 
+.dashboard.has-bar-widget {
+    grid-template-rows: 150px 112px 96px minmax(0, 1fr);
+}
+
 .dashboard-header,
 .content-stack,
 .meals-grid,
@@ -218,6 +222,22 @@ p {
     overflow: hidden;
 }
 
+.bar-widget-panel {
+    grid-column: 1;
+    grid-row: 3;
+    min-width: 0;
+    min-height: 0;
+    padding: 4px 8px;
+    overflow: hidden;
+    background: #1565c0;
+    display: flex;
+    align-items: stretch;
+}
+
+.dashboard.has-bar-widget .bar-widget-panel {
+    display: flex;
+}
+
 .side-stack {
     grid-column: 2;
     grid-row: 1 / span 3;
@@ -226,13 +246,17 @@ p {
     flex-direction: column;
 }
 
+.dashboard.has-bar-widget .side-stack {
+    grid-row: 1 / span 4;
+}
+
 .meals-panel {
     grid-column: 1;
     grid-row: 3;
     width: auto;
     min-width: 0;
     min-height: 0;
-    padding: 12px;
+    padding: 11px;
     background: #141619;
     overflow: hidden;
 }
@@ -402,7 +426,7 @@ p {
     flex: 1 1 0;
     min-width: 0;
     min-height: 0;
-    padding: 10px 12px;
+    padding: 9px 11px;
     border-radius: 10px;
     background: #202226;
     box-shadow: 0 7px 16px rgba(0, 0, 0, 0.18);
@@ -428,33 +452,33 @@ p {
     position: relative;
     flex: 1 1 0;
     min-width: 0;
-    height: 80px;
+    height: 78px;
 }
 
 .stat-ring-canvas {
     position: absolute;
     left: 50%;
     top: 0;
-    width: 80px;
-    height: 80px;
+    width: 78px;
+    height: 78px;
     transform: translateX(-50%);
 }
 
 .stat-ring-icon {
     position: absolute;
     left: 50%;
-    top: 15px;
-    width: 29px;
-    height: 29px;
+    top: 14px;
+    width: 28px;
+    height: 28px;
     transform: translateX(-50%);
 }
 
 .stat-ring-value {
     position: absolute;
     left: 50%;
-    top: 49px;
+    top: 48px;
     color: #ffffff;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 700;
     line-height: 1;
     transform: translateX(-50%);
@@ -476,15 +500,15 @@ p {
 
 .menu-section {
     min-width: 0;
-    padding: 9px 0;
+    padding: 8px 0;
     border-top: 1px solid #333333;
     border-radius: 0;
     background: transparent;
     box-shadow: none;
     display: grid;
-    grid-template-columns: 118px minmax(0, 1fr);
-    gap: 32px;
-    grid-column-gap: 32px;
+    grid-template-columns: 115px minmax(0, 1fr);
+    gap: 30px;
+    grid-column-gap: 30px;
     align-items: center;
     overflow: hidden;
 }
@@ -501,7 +525,7 @@ p {
 .menu-section h4 {
     margin-bottom: 0;
     color: #ffffff;
-    font-size: 16px;
+    font-size: 15px;
     line-height: 1.15;
     text-align: right;
 }
@@ -516,7 +540,7 @@ p {
 
 .menu-section li {
     color: #ffffff;
-    font-size: 19px;
+    font-size: 18px;
     line-height: 1.22;
     padding: 3px 0;
     overflow-wrap: anywhere;
@@ -702,6 +726,10 @@ p {
     align-items: stretch;
     justify-content: flex-end;
     overflow: hidden;
+}
+
+.dashboard.has-bar-widget .meals-panel {
+    grid-row: 4;
 }
 
 .weather-main {
@@ -1029,7 +1057,8 @@ p {
 
     .events-panel,
     .meal-block,
-    .forecast-panel {
+    .forecast-panel,
+    .bar-widget-panel {
         overflow: visible;
     }
 
@@ -1104,6 +1133,286 @@ p {
     }
 }
 
+.bar-widget-content {
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    gap: 0;
+    overflow: hidden;
+}
+
+.bar-widget-slide {
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    padding: 4px 6px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    overflow: hidden;
+    box-shadow: 0 7px 16px rgba(0, 0, 0, 0.18);
+}
+
+.bar-widget-label {
+    flex: 0 0 auto;
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.bar-widget-slide > * + * {
+    margin-left: 10px;
+}
+
+.bar-widget-fit-text,
+.bar-widget-countdown-value,
+.bar-widget-empty {
+    display: block;
+    min-width: 0;
+    color: #ffffff;
+    font-size: 34px;
+    font-weight: 700;
+    line-height: 1.18;
+    padding-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bar-widget-countdown-value {
+    font-size: 32px;
+}
+
+.bar-widget-soccer-slide {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
+}
+
+.bar-widget-soccer-slide > * + * {
+    margin-left: 0;
+    margin-top: 3px;
+}
+
+.bar-widget-soccer-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    min-width: 0;
+    width: 100%;
+    overflow: hidden;
+}
+
+.bar-widget-soccer-header > * + * {
+    margin-left: 7px;
+}
+
+.bar-widget-soccer-title {
+    min-width: 0;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bar-widget-soccer-match-list {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.bar-widget-soccer-match-list > * + * {
+    margin-left: 8px;
+}
+
+.bar-widget-soccer-card {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 270px;
+    padding: 5px 7px;
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.08);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.bar-widget-soccer-card > * + * {
+    margin-top: 3px;
+}
+
+.bar-widget-soccer-card-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    min-width: 0;
+    width: 100%;
+    overflow: hidden;
+}
+
+.bar-widget-soccer-card-top > * + * {
+    margin-left: 5px;
+}
+
+.bar-widget-soccer-card-label {
+    flex: 0 1 auto;
+    color: rgba(255, 255, 255, 0.76);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bar-widget-soccer-card-date {
+    flex: 0 0 auto;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.bar-widget-soccer-card-middle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-width: 0;
+}
+
+.bar-widget-soccer-card-middle > * + * {
+    margin-left: 10px;
+}
+
+.bar-widget-soccer-team-card {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.bar-widget-soccer-team-card > * + * {
+    margin-top: 3px;
+}
+
+.bar-widget-soccer-team-visual {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.bar-widget-soccer-team-badge {
+    display: block;
+    max-width: 28px;
+    max-height: 28px;
+    object-fit: contain;
+}
+
+.bar-widget-soccer-team-chip {
+    display: none;
+    min-width: 30px;
+    padding: 5px 5px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.bar-widget-soccer-team-visual.is-missing-badge .bar-widget-soccer-team-chip {
+    display: block;
+}
+
+.bar-widget-soccer-team-abbr {
+    max-width: 100%;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bar-widget-soccer-score-block {
+    flex: 0 0 auto;
+    min-width: 52px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.bar-widget-soccer-score-block > * + * {
+    margin-top: 2px;
+}
+
+.bar-widget-soccer-card-score {
+    color: #ffffff;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.bar-widget-soccer-live,
+.bar-widget-soccer-status {
+    color: rgba(255, 255, 255, 0.76);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.bar-widget-soccer-live {
+    padding: 2px 5px;
+    border-radius: 999px;
+    background: #c62828;
+    color: #ffffff;
+}
+
+.bar-widget-soccer-message {
+    color: #ffffff;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.18;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+}
+
 @media (max-width: 980px) {
     .hero-content {
         flex-wrap: wrap;
@@ -1152,8 +1461,13 @@ p {
     .meals-panel,
     .events-panel,
     .pizza-index-panel,
+    .bar-widget-panel,
     .birthdays-panel.is-featured {
         padding: 14px;
+    }
+
+    .bar-widget-panel {
+        padding: 4px 8px;
     }
 
     .clock-panel {
@@ -1190,6 +1504,18 @@ p {
     .pizza-index-content {
         display: flex;
         flex-wrap: wrap;
+    }
+
+    .bar-widget-content {
+        display: flex;
+        height: 100%;
+    }
+
+    .bar-widget-announcement,
+    .bar-widget-countdown,
+    .bar-widget-soccer-slide,
+    .bar-widget-empty {
+        width: 100%;
     }
 
     .pizza-index-text {
