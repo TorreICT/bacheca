@@ -223,6 +223,9 @@ def normalize_match(match, current):
         return None
 
     status = str(match.get("status") or "").upper()
+    live = status in ("IN_PLAY", "PAUSED", "LIVE")
+    minute = normalize_match_number(match.get("minute"))
+    injury_time = normalize_match_number(match.get("injuryTime"))
     score = match.get("score") if isinstance(match.get("score"), dict) else {}
     full_time = score.get("fullTime") if isinstance(score.get("fullTime"), dict) else {}
 
@@ -234,7 +237,13 @@ def normalize_match(match, current):
         return {
             "kind": "result",
             "dateLabel": format_match_date(match_time, include_time=False),
+            "displayDate": format_match_date(match_time, include_time=False),
+            "displayTime": format_match_time(match_time),
             "time": bar_widget.isoformat(match_time),
+            "status": status,
+            "minute": minute,
+            "injuryTime": injury_time,
+            "live": False,
             "home": home,
             "away": away,
             "score": {
@@ -249,10 +258,16 @@ def normalize_match(match, current):
         return {
             "kind": "fixture",
             "dateLabel": format_match_date(match_time, include_time=True),
+            "displayDate": format_match_date(match_time, include_time=False),
+            "displayTime": format_match_time(match_time),
             "time": bar_widget.isoformat(match_time),
+            "status": status,
+            "minute": minute,
+            "injuryTime": injury_time,
+            "live": live,
             "home": home,
             "away": away,
-            "score": None,
+            "score": normalize_score(full_time),
             "text": format_match_date(match_time, include_time=True) + " " + home["abbr"] + " vs " + away["abbr"],
             "sortAt": match_time,
         }
@@ -297,6 +312,31 @@ def format_match_date(match_time, include_time):
     if include_time:
         return local.strftime("%d/%m %H:%M")
     return local.strftime("%d/%m")
+
+
+def format_match_time(match_time):
+    return match_time.astimezone(bar_widget.timezone()).strftime("%H:%M")
+
+
+def normalize_match_number(value):
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return None
+    return number if number >= 0 else None
+
+
+def normalize_score(score):
+    if not isinstance(score, dict):
+        return None
+    home = score.get("home")
+    away = score.get("away")
+    if home is None or away is None:
+        return None
+    return {
+        "home": home,
+        "away": away,
+    }
 
 
 def unavailable(code, message, cached=None):

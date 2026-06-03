@@ -4,9 +4,14 @@
 
     var dom = Bacheca.utils.dom;
     var countdownTimer = null;
-    var marqueeItems = [];
-    var resizeAttached = false;
+    var slideTimer = null;
     var resizeTimer = null;
+    var resizeAttached = false;
+    var slides = [];
+    var activeSlideIndex = 0;
+    var activeFitItems = [];
+    var currentContent = null;
+    var slideIntervalMs = 10000;
 
     function setLoading() {
         render(null, null);
@@ -16,10 +21,11 @@
         var panel = dom.byId("bar-widget-panel");
         var content = dom.byId("bar-widget-content");
         var dashboard = dom.byId("dashboard");
-        var hasContent;
 
-        clearCountdownTimer();
-        marqueeItems = [];
+        clearTimers();
+        activeFitItems = [];
+        currentContent = content;
+
         if (!panel || !content) {
             return;
         }
@@ -32,159 +38,233 @@
         }
 
         panel.style.backgroundColor = safeColor(data.color);
-        hasContent = appendContent(content, data);
+        slides = buildSlides(data);
+        activeSlideIndex = 0;
 
-        if (!hasContent) {
-            content.appendChild(dom.create("div", "bar-widget-empty", "Bacheca aggiornata"));
+        if (!slides.length) {
+            slides.push({ type: "empty", text: "Bacheca aggiornata" });
         }
 
         dom.removeClass(panel, "is-hidden");
         if (dashboard) {
             dom.addClass(dashboard, "has-bar-widget");
         }
+
         attachResizeHandler();
-        window.setTimeout(recalculateMarquees, 0);
+        renderActiveSlide();
+        startSlideRotation();
     }
 
     function hide(panel, dashboard) {
+        slides = [];
         dom.addClass(panel, "is-hidden");
         if (dashboard) {
             dom.removeClass(dashboard, "has-bar-widget");
         }
     }
 
-    function appendContent(content, data) {
-        var hasContent = false;
+    function buildSlides(data) {
+        var list = [];
+        var soccerSlides;
+        var i;
 
         if (data.announcement && data.announcement.text) {
-            content.appendChild(createAnnouncement(data.announcement));
-            hasContent = true;
+            list.push({ type: "announcement", announcement: data.announcement });
         }
 
         if (data.countdown && data.countdown.to) {
-            content.appendChild(createCountdown(data.countdown));
-            hasContent = true;
+            list.push({ type: "countdown", countdown: data.countdown });
         }
 
         if (data.soccer && data.soccer.enabled) {
-            content.appendChild(createSoccer(data.soccer));
-            hasContent = true;
+            soccerSlides = buildSoccerSlides(data.soccer);
+            for (i = 0; i < soccerSlides.length; i++) {
+                list.push(soccerSlides[i]);
+            }
         }
 
-        return hasContent;
+        return list;
     }
 
-    function createAnnouncement(announcement) {
-        var item = dom.create("div", "bar-widget-announcement");
-        var viewport = dom.create("div", "bar-widget-marquee");
-        var track = dom.create("div", "bar-widget-marquee-track");
-        var primary = dom.create("span", "bar-widget-marquee-text", announcement.text);
-        var spacer = dom.create("span", "bar-widget-marquee-spacer", "\u00a0\u00a0\u2022\u00a0\u00a0");
-        var clone = dom.create("span", "bar-widget-marquee-text bar-widget-marquee-clone", announcement.text);
+    function buildSoccerSlides(soccer) {
+        var list = [];
+        var fixtures = arrayOrEmpty(soccer.fixtures);
+        var results = arrayOrEmpty(soccer.results);
+        var liveMatches = [];
+        var futureMatches = [];
+        var i;
 
-        track.appendChild(primary);
-        track.appendChild(spacer);
-        track.appendChild(clone);
-        viewport.appendChild(track);
+        if (!soccer.available) {
+            return [{ type: "soccer-message", soccer: soccer, text: soccer.message || "Calcio non disponibile" }];
+        }
+
+        for (i = 0; i < fixtures.length; i++) {
+            if (fixtures[i] && fixtures[i].live) {
+                liveMatches.push(fixtures[i]);
+            } else if (fixtures[i]) {
+                futureMatches.push(fixtures[i]);
+            }
+        }
+
+        for (i = 0; i < liveMatches.length; i++) {
+            list.push({ type: "soccer-match", soccer: soccer, match: liveMatches[i], label: "Live" });
+        }
+        for (i = 0; i < results.length; i++) {
+            list.push({ type: "soccer-match", soccer: soccer, match: results[i], label: "Ultime" });
+        }
+        for (i = 0; i < futureMatches.length; i++) {
+            list.push({ type: "soccer-match", soccer: soccer, match: futureMatches[i], label: "Prossime" });
+        }
+
+        if (!list.length) {
+            list.push({ type: "soccer-message", soccer: soccer, text: soccer.message || "Nessuna partita in evidenza" });
+        }
+
+        return list;
+    }
+
+    function renderActiveSlide() {
+        var slide;
+
+        clearCountdownTimer();
+        activeFitItems = [];
+        if (!currentContent) {
+            return;
+        }
+
+        dom.clear(currentContent);
+        if (!slides.length) {
+            return;
+        }
+
+        if (activeSlideIndex >= slides.length) {
+            activeSlideIndex = 0;
+        }
+
+        slide = slides[activeSlideIndex];
+        if (slide.type === "announcement") {
+            currentContent.appendChild(createAnnouncementSlide(slide.announcement));
+        } else if (slide.type === "countdown") {
+            currentContent.appendChild(createCountdownSlide(slide.countdown));
+        } else if (slide.type === "soccer-match") {
+            currentContent.appendChild(createSoccerMatchSlide(slide));
+        } else if (slide.type === "soccer-message") {
+            currentContent.appendChild(createMessageSlide("Calcio", slide.text));
+        } else {
+            currentContent.appendChild(createMessageSlide("", slide.text || "Bacheca aggiornata"));
+        }
+
+        window.setTimeout(fitActiveText, 0);
+    }
+
+    function startSlideRotation() {
+        if (slides.length <= 1) {
+            return;
+        }
+        slideTimer = window.setInterval(function () {
+            activeSlideIndex = (activeSlideIndex + 1) % slides.length;
+            renderActiveSlide();
+        }, slideIntervalMs);
+    }
+
+    function createAnnouncementSlide(announcement) {
+        var item = dom.create("div", "bar-widget-slide bar-widget-announcement");
+        var text = dom.create("strong", "bar-widget-fit-text bar-widget-announcement-text", announcement.text);
+
         item.appendChild(dom.create("span", "bar-widget-label", "Avviso"));
-        item.appendChild(viewport);
-
-        marqueeItems.push({
-            viewport: viewport,
-            track: track,
-            primary: primary
+        item.appendChild(text);
+        activeFitItems.push({
+            element: text,
+            max: 34,
+            min: 18
         });
-
         return item;
     }
 
-    function createCountdown(countdown) {
-        var item = dom.create("div", "bar-widget-countdown");
-        var label = dom.create("span", "bar-widget-label", countdown.label || "Manca");
+    function createCountdownSlide(countdown) {
+        var item = dom.create("div", "bar-widget-slide bar-widget-countdown");
         var value = dom.create("strong", "bar-widget-countdown-value", "--");
-        item.appendChild(label);
+
+        item.appendChild(dom.create("span", "bar-widget-label", countdown.label || "Manca"));
         item.appendChild(value);
         startCountdown(value, countdown.to);
         return item;
     }
 
-    function createSoccer(soccer) {
-        var item = dom.create("div", "bar-widget-soccer");
-        var header = dom.create("div", "bar-widget-soccer-header");
-        var body = dom.create("div", "bar-widget-soccer-body");
-        var results = arrayOrEmpty(soccer.results);
-        var fixtures = arrayOrEmpty(soccer.fixtures);
-
-        header.appendChild(dom.create("span", "bar-widget-label", "Calcio"));
-        header.appendChild(dom.create("strong", "bar-widget-soccer-title", soccer.label || soccer.competition || ""));
-        item.appendChild(header);
-
-        if (!soccer.available) {
-            body.appendChild(dom.create("div", "bar-widget-soccer-message", soccer.message || "Calcio non disponibile"));
-            item.appendChild(body);
-            return item;
+    function createMessageSlide(label, text) {
+        var item = dom.create("div", "bar-widget-slide bar-widget-message");
+        var message = dom.create("strong", "bar-widget-fit-text", text || "");
+        if (label) {
+            item.appendChild(dom.create("span", "bar-widget-label", label));
         }
-
-        if (!results.length && !fixtures.length) {
-            body.appendChild(createSoccerFallback(soccer));
-            item.appendChild(body);
-            return item;
-        }
-
-        body.appendChild(createSoccerGroup("Ultime", results, "Nessun risultato"));
-        body.appendChild(createSoccerGroup("Prossime", fixtures, "Nessuna partita"));
-        item.appendChild(body);
+        item.appendChild(message);
+        activeFitItems.push({
+            element: message,
+            max: 32,
+            min: 16
+        });
         return item;
     }
 
-    function createSoccerGroup(title, matches, emptyText) {
-        var group = dom.create("div", "bar-widget-soccer-group");
-        var label = dom.create("span", "bar-widget-soccer-group-label", title);
-        var rows = dom.create("div", "bar-widget-soccer-rows");
-        var i;
+    function createSoccerMatchSlide(slide) {
+        var item = dom.create("div", "bar-widget-slide bar-widget-soccer-card");
+        var match = slide.match || {};
+        var top = dom.create("div", "bar-widget-soccer-card-top");
+        var middle = dom.create("div", "bar-widget-soccer-card-middle");
+        var scoreBlock = dom.create("div", "bar-widget-soccer-score-block");
 
-        group.appendChild(label);
-
-        if (!matches.length) {
-            rows.appendChild(dom.create("div", "bar-widget-soccer-empty", emptyText));
-        } else {
-            for (i = 0; i < matches.length; i++) {
-                rows.appendChild(createSoccerMatch(matches[i]));
-            }
+        top.appendChild(dom.create("span", "bar-widget-soccer-card-label", slide.label || "Calcio"));
+        top.appendChild(dom.create("strong", "bar-widget-soccer-card-date", soccerDateTime(match)));
+        if (slide.soccer && (slide.soccer.label || slide.soccer.competition)) {
+            top.appendChild(dom.create("span", "bar-widget-soccer-card-competition", slide.soccer.label || slide.soccer.competition));
         }
 
-        group.appendChild(rows);
-        return group;
+        scoreBlock.appendChild(dom.create("strong", "bar-widget-soccer-card-score", soccerScore(match)));
+        scoreBlock.appendChild(dom.create("span", match.live ? "bar-widget-soccer-live" : "bar-widget-soccer-status", soccerStatus(match)));
+
+        middle.appendChild(createSoccerTeamCard(match.home, "home"));
+        middle.appendChild(scoreBlock);
+        middle.appendChild(createSoccerTeamCard(match.away, "away"));
+
+        item.appendChild(top);
+        item.appendChild(middle);
+        return item;
     }
 
-    function createSoccerMatch(match) {
-        var row = dom.create("div", "bar-widget-soccer-match");
-        row.appendChild(dom.create("span", "bar-widget-soccer-date", match.dateLabel || "--"));
-        row.appendChild(createSoccerTeam(match.home));
-        row.appendChild(dom.create("strong", "bar-widget-soccer-score", soccerScore(match)));
-        row.appendChild(createSoccerTeam(match.away));
-        return row;
-    }
-
-    function createSoccerTeam(team) {
+    function createSoccerTeamCard(team, side) {
         var data = team || {};
-        var root = dom.create("span", "bar-widget-soccer-team");
-        var abbr = dom.create("span", "bar-widget-soccer-abbr", data.abbr || shortName(data.shortName || data.name));
+        var root = dom.create("div", "bar-widget-soccer-team-card bar-widget-soccer-team-" + side);
+        var visual = dom.create("div", "bar-widget-soccer-team-visual");
+        var abbr = dom.create("div", "bar-widget-soccer-team-abbr", data.abbr || shortName(data.shortName || data.name));
         var image;
 
         if (data.badgeUrl) {
-            image = dom.create("img", "bar-widget-soccer-badge");
+            image = dom.create("img", "bar-widget-soccer-team-badge");
             image.src = data.badgeUrl;
             image.alt = data.abbr || "";
             image.onerror = function () {
                 this.style.display = "none";
+                dom.addClass(visual, "is-missing-badge");
             };
-            root.appendChild(image);
+            visual.appendChild(image);
+        } else {
+            dom.addClass(visual, "is-missing-badge");
         }
 
+        visual.appendChild(dom.create("span", "bar-widget-soccer-team-chip", data.abbr || shortName(data.shortName || data.name)));
+        root.appendChild(visual);
         root.appendChild(abbr);
         root.title = data.name || data.shortName || data.abbr || "";
         return root;
+    }
+
+    function soccerDateTime(match) {
+        var date = match && match.displayDate ? match.displayDate : "";
+        var time = match && match.displayTime ? match.displayTime : "";
+        if (date && time) {
+            return date + " " + time;
+        }
+        return date || time || "--";
     }
 
     function soccerScore(match) {
@@ -194,26 +274,28 @@
         return "vs";
     }
 
-    function createSoccerFallback(soccer) {
-        return dom.create("div", "bar-widget-soccer-message", soccerText(soccer));
+    function soccerStatus(match) {
+        if (!match) {
+            return "";
+        }
+        if (match.live) {
+            var minute = liveMinute(match);
+            return minute ? "LIVE " + minute : "LIVE";
+        }
+        if (match.kind === "result") {
+            return "Risultato";
+        }
+        return "In programma";
     }
 
-    function soccerText(soccer) {
-        var items = soccer.items || [];
-        var parts = [];
-        var i;
-
-        for (i = 0; i < items.length; i++) {
-            if (items[i] && items[i].text) {
-                parts.push(items[i].text);
-            }
+    function liveMinute(match) {
+        if (match.minute === null || match.minute === undefined) {
+            return "";
         }
-
-        if (!parts.length) {
-            return soccer.message || "Nessuna partita in evidenza";
+        if (match.injuryTime !== null && match.injuryTime !== undefined && match.injuryTime > 0) {
+            return String(match.minute) + "+" + String(match.injuryTime) + "'";
         }
-
-        return parts.join("  |  ");
+        return String(match.minute) + "'";
     }
 
     function attachResizeHandler() {
@@ -232,44 +314,32 @@
             if (resizeTimer) {
                 window.clearTimeout(resizeTimer);
             }
-            resizeTimer = window.setTimeout(recalculateMarquees, 180);
+            resizeTimer = window.setTimeout(fitActiveText, 180);
         };
     }
 
-    function recalculateMarquees() {
+    function fitActiveText() {
         var i;
-        for (i = 0; i < marqueeItems.length; i++) {
-            adjustMarquee(marqueeItems[i]);
+        for (i = 0; i < activeFitItems.length; i++) {
+            fitText(activeFitItems[i]);
         }
     }
 
-    function adjustMarquee(item) {
-        var maxFont = 28;
-        var minFont = 18;
-        var size = maxFont;
-        var viewportWidth;
-        var textWidth;
-        var duration;
+    function fitText(item) {
+        var element = item && item.element;
+        var size = item ? item.max : 34;
+        var min = item ? item.min : 18;
+        var parent;
 
-        if (!item || !item.viewport || !item.track || !item.primary) {
+        if (!element) {
             return;
         }
 
-        dom.removeClass(item.viewport, "is-scrolling");
-        item.track.style.animationDuration = "";
-        item.track.style.fontSize = maxFont + "px";
-        viewportWidth = item.viewport.clientWidth;
-
-        while (size > minFont && item.primary.scrollWidth > viewportWidth) {
+        parent = element.parentNode;
+        element.style.fontSize = size + "px";
+        while (size > min && parent && element.clientWidth > 0 && element.scrollWidth > element.clientWidth) {
             size = size - 1;
-            item.track.style.fontSize = size + "px";
-        }
-
-        textWidth = item.primary.scrollWidth;
-        if (textWidth > viewportWidth) {
-            duration = Math.max(22, Math.min(90, Math.ceil(textWidth / 18)));
-            item.track.style.animationDuration = duration + "s";
-            dom.addClass(item.viewport, "is-scrolling");
+            element.style.fontSize = size + "px";
         }
     }
 
@@ -292,6 +362,14 @@
 
         tick();
         countdownTimer = window.setInterval(tick, 1000);
+    }
+
+    function clearTimers() {
+        clearCountdownTimer();
+        if (slideTimer) {
+            window.clearInterval(slideTimer);
+            slideTimer = null;
+        }
     }
 
     function clearCountdownTimer() {
