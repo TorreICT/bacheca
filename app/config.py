@@ -70,6 +70,7 @@ class Settings:
 
     timezone = os.getenv("BACHECA_TIMEZONE", "Europe/Rome")
     bar_widget_state_path = resolve_path("BACHECA_BAR_WIDGET_STATE_PATH", ".cache/bar-widget-state.json")
+    telegram_admins_path = resolve_path("TELEGRAM_ADMINS_PATH", ".cache/telegram-admins.json")
 
     soccer_provider = os.getenv("BACHECA_SOCCER_PROVIDER", "football-data")
     soccer_api_token = os.getenv("BACHECA_SOCCER_API_TOKEN", "")

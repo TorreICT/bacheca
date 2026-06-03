@@ -1,22 +1,26 @@
+import json
 import os
 import re
+import tempfile
+import threading
 from datetime import timedelta
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
+from app.config import settings
 from app.services import bar_widget, basketball, soccer
 
 
 FLOW_KEY = "bar_widget_flow"
 DURATION_RE = re.compile(r"^\s*(\d+)\s*([a-zA-Z]+)?\s*$")
 DAY_NAMES = ["lun", "mar", "mer", "gio", "ven", "sab", "dom"]
+_admins_lock = threading.Lock()
 
 
-def allowed_chat_ids():
-    raw = os.getenv("TELEGRAM_ALLOWED_CHAT_IDS", "")
+def parse_chat_ids(raw):
     ids = set()
-    for part in raw.replace(";", ",").split(","):
+    for part in str(raw or "").replace(";", ",").split(","):
         text = part.strip()
         if not text:
             continue
@@ -27,10 +31,75 @@ def allowed_chat_ids():
     return ids
 
 
+def superadmin_chat_ids():
+    return parse_chat_ids(os.getenv("TELEGRAM_SUPERADMIN_CHAT_IDS", ""))
+
+
+def admin_chat_ids():
+    path = settings.telegram_admins_path
+    if not path.exists():
+        return set()
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except Exception:
+        return set()
+    if isinstance(data, dict):
+        return parse_chat_ids(",".join([str(item) for item in data.get("admins") or []]))
+    if isinstance(data, list):
+        return parse_chat_ids(",".join([str(item) for item in data]))
+    return set()
+
+
+def save_admin_chat_ids(ids):
+    path = settings.telegram_admins_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"admins": sorted([int(item) for item in ids])}
+    fd, temp_name = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, ensure_ascii=False, indent=2, sort_keys=True)
+            handle.write("\n")
+        os.replace(temp_name, path)
+    finally:
+        if os.path.exists(temp_name):
+            os.unlink(temp_name)
+
+
+def add_admin_chat_id(chat_id):
+    target = int(chat_id)
+    if target in superadmin_chat_ids():
+        return "superadmin"
+    with _admins_lock:
+        ids = admin_chat_ids()
+        if target in ids:
+            return "exists"
+        ids.add(target)
+        save_admin_chat_ids(ids)
+    return "added"
+
+
+def remove_admin_chat_id(chat_id):
+    target = int(chat_id)
+    with _admins_lock:
+        ids = admin_chat_ids()
+        if target not in ids:
+            return False
+        ids.remove(target)
+        save_admin_chat_ids(ids)
+    return True
+
+
+def is_superadmin(update):
+    chat = update.effective_chat
+    return bool(chat and chat.id in superadmin_chat_ids())
+
+
 def is_authorized(update):
     chat = update.effective_chat
-    allowed = allowed_chat_ids()
-    return bool(chat and allowed and chat.id in allowed)
+    if not chat:
+        return False
+    return chat.id in superadmin_chat_ids() or chat.id in admin_chat_ids()
 
 
 async def deny(update):
@@ -41,11 +110,24 @@ async def deny(update):
         await update.message.reply_text("Questa chat non e autorizzata a controllare la bacheca. Usa /my_id per vedere l'ID.")
 
 
+async def deny_superadmin(update):
+    if update.message:
+        await update.message.reply_text("Solo i superadmin possono gestire gli amministratori. Usa /my_id per vedere l'ID di questa chat.")
+
+
 def chat_id_text(update):
     chat = update.effective_chat
     if not chat:
         return "unknown"
     return str(chat.id)
+
+
+def role_text(update):
+    if is_superadmin(update):
+        return "superadmin"
+    if is_authorized(update):
+        return "admin"
+    return "non autorizzata"
 
 
 def main_keyboard():
@@ -298,6 +380,8 @@ def status_text():
     announcements = bar_widget.announcement_records()
     active_count = len([item for item in announcements if item.get("active")])
     basketball_season = basketball_state.get("season") or basketball.default_season()
+    admins = admin_chat_ids()
+    superadmins = superadmin_chat_ids()
     parts = [
         "📟 Pannello barra Bacheca",
         "👁️ Visibile: " + ("si" if state.get("visible") else "no"),
@@ -306,29 +390,39 @@ def status_text():
         "⏳ Countdown: " + (countdown.get("to") if countdown else "nessuno"),
         "⚽ Calcio: " + ("attivo" if soccer_state.get("enabled") else "spento") + " " + str(soccer_state.get("competition") or "SA"),
         "🏀 Basket: " + ("attivo" if basketball_state.get("enabled") else "spento") + " " + str(basketball_state.get("competition") or "-") + " stagione " + basketball_season,
+        "👥 Admin: " + str(len(admins)) + " admin / " + str(len(superadmins)) + " superadmin",
     ]
     return "\n".join(parts)
 
 
-def help_text():
-    return "\n".join(
-        [
-            "🧭 Comandi disponibili:",
-            "/start - introduzione e pannello",
-            "/panel - apre il pannello con i pulsanti",
-            "/my_id - mostra l'ID di questa chat",
-            "/show e /hide - mostra/nasconde la barra",
-            "/announce Testo | 2h - avviso temporaneo da ora",
-            "/announce Testo | 2026-06-03T18:00:00+02:00 | 2h - avviso temporaneo con inizio scelto",
-            "/countdown Etichetta | 2026-06-03T20:00:00+02:00 - imposta un countdown",
-            "/color blue oppure /color #1565C0 - cambia colore",
-            "/soccer SA - sceglie la competizione",
-            "/soccer_on e /soccer_off - attiva/disattiva il calcio",
-            "/basketball 12 2025-2026 - sceglie lega basket e stagione",
-            "/basketball_on e /basketball_off - attiva/disattiva il basket",
-            "/cancel - interrompe una procedura guidata",
-        ]
-    )
+def help_text(include_superadmin=False):
+    lines = [
+        "🧭 Comandi disponibili:",
+        "/start - introduzione e pannello",
+        "/panel - apre il pannello con i pulsanti",
+        "/my_id - mostra l'ID di questa chat",
+        "/show e /hide - mostra/nasconde la barra",
+        "/announce Testo | 2h - avviso temporaneo da ora",
+        "/announce Testo | 2026-06-03T18:00:00+02:00 | 2h - avviso temporaneo con inizio scelto",
+        "/countdown Etichetta | 2026-06-03T20:00:00+02:00 - imposta un countdown",
+        "/color blue oppure /color #1565C0 - cambia colore",
+        "/soccer SA - sceglie la competizione",
+        "/soccer_on e /soccer_off - attiva/disattiva il calcio",
+        "/basketball 12 2025-2026 - sceglie lega basket e stagione",
+        "/basketball_on e /basketball_off - attiva/disattiva il basket",
+        "/cancel - interrompe una procedura guidata",
+    ]
+    if include_superadmin:
+        lines.extend(
+            [
+                "",
+                "👑 Solo superadmin:",
+                "/admins - mostra superadmin e admin",
+                "/add_admin 123456789 - aggiunge un admin",
+                "/remove_admin 123456789 - rimuove un admin",
+            ]
+        )
+    return "\n".join(lines)
 
 
 def start_text(update):
@@ -337,10 +431,11 @@ def start_text(update):
             "👋 Benvenuto nel controller della barra Bacheca Torrescalla.",
             "Da qui puoi gestire avvisi, countdown, colore, visibilita, calcio e basket.",
             "ID di questa chat: " + chat_id_text(update),
+            "Ruolo: " + role_text(update),
             "",
             status_text(),
             "",
-            help_text(),
+            help_text(is_superadmin(update)),
         ]
     )
 
@@ -351,7 +446,7 @@ def unauthorized_start_text(update):
             "👋 Benvenuto nel controller della barra Bacheca Torrescalla.",
             "Questa chat non e ancora autorizzata a controllare la dashboard.",
             "ID di questa chat: " + chat_id_text(update),
-            "Chiedi a un amministratore di aggiungere questo ID a TELEGRAM_ALLOWED_CHAT_IDS.",
+            "Chiedi a un superadmin di aggiungere questo ID con /add_admin.",
             "",
             "Comandi disponibili:",
             "/my_id - mostra l'ID di questa chat",
@@ -386,14 +481,14 @@ async def panel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def my_id_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = chat_id_text(update)
     authorized = "si" if is_authorized(update) else "no"
-    await update.message.reply_text("🪪 ID chat: " + chat_id + "\nAutorizzata: " + authorized)
+    await update.message.reply_text("🪪 ID chat: " + chat_id + "\nAutorizzata: " + authorized + "\nRuolo: " + role_text(update))
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_authorized(update):
         await deny(update)
         return
-    await update.message.reply_text(help_text(), reply_markup=main_keyboard())
+    await update.message.reply_text(help_text(is_superadmin(update)), reply_markup=main_keyboard())
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -419,7 +514,7 @@ async def callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "status":
         await query.edit_message_text(status_text(), reply_markup=main_keyboard())
     elif data == "help":
-        await query.edit_message_text(help_text(), reply_markup=main_keyboard())
+        await query.edit_message_text(help_text(is_superadmin(update)), reply_markup=main_keyboard())
     elif data == "show":
         bar_widget.set_visible(True)
         await query.edit_message_text("✅ Barra mostrata.", reply_markup=main_keyboard())
@@ -861,12 +956,86 @@ async def basketball_off_command(update: Update, context: ContextTypes.DEFAULT_T
     await update.message.reply_text("⛔ Basket disattivato.", reply_markup=main_keyboard())
 
 
+def admin_list_text():
+    superadmins = sorted(superadmin_chat_ids())
+    admins = sorted(admin_chat_ids())
+    lines = [
+        "👥 Amministratori Telegram",
+        "",
+        "👑 Superadmin da .env:",
+    ]
+    if superadmins:
+        for item in superadmins:
+            lines.append("- " + str(item))
+    else:
+        lines.append("- nessuno")
+    lines.extend(["", "🛠️ Admin salvati:"])
+    if admins:
+        for item in admins:
+            lines.append("- " + str(item))
+    else:
+        lines.append("- nessuno")
+    lines.extend(
+        [
+            "",
+            "Gli admin possono controllare tutta la barra, ma non possono aggiungere o rimuovere persone.",
+        ]
+    )
+    return "\n".join(lines)
+
+
+async def admins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_superadmin(update):
+        await deny_superadmin(update)
+        return
+    await update.message.reply_text(admin_list_text())
+
+
+async def add_admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_superadmin(update):
+        await deny_superadmin(update)
+        return
+    ids = parse_chat_ids(" ".join(context.args or []).replace(" ", ","))
+    if not ids:
+        await update.message.reply_text("Uso: /add_admin 123456789")
+        return
+    lines = []
+    for chat_id in sorted(ids):
+        result = add_admin_chat_id(chat_id)
+        if result == "added":
+            lines.append("✅ Admin aggiunto: " + str(chat_id))
+        elif result == "exists":
+            lines.append("ℹ️ Era gia admin: " + str(chat_id))
+        else:
+            lines.append("👑 E gia superadmin: " + str(chat_id))
+    await update.message.reply_text("\n".join(lines) + "\n\n" + admin_list_text())
+
+
+async def remove_admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_superadmin(update):
+        await deny_superadmin(update)
+        return
+    ids = parse_chat_ids(" ".join(context.args or []).replace(" ", ","))
+    if not ids:
+        await update.message.reply_text("Uso: /remove_admin 123456789")
+        return
+    lines = []
+    for chat_id in sorted(ids):
+        if chat_id in superadmin_chat_ids():
+            lines.append("👑 Non posso rimuovere un superadmin da qui: " + str(chat_id))
+        elif remove_admin_chat_id(chat_id):
+            lines.append("🗑️ Admin rimosso: " + str(chat_id))
+        else:
+            lines.append("ℹ️ Non era admin: " + str(chat_id))
+    await update.message.reply_text("\n".join(lines) + "\n\n" + admin_list_text())
+
+
 def build_application():
     token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     if not token:
         raise RuntimeError("TELEGRAM_BOT_TOKEN is required")
-    if not allowed_chat_ids():
-        raise RuntimeError("TELEGRAM_ALLOWED_CHAT_IDS is required and must not be empty")
+    if not superadmin_chat_ids():
+        raise RuntimeError("TELEGRAM_SUPERADMIN_CHAT_IDS is required and must not be empty")
 
     app = Application.builder().token(token).build()
     app.add_handler(CommandHandler("start", start))
@@ -885,6 +1054,9 @@ def build_application():
     app.add_handler(CommandHandler("basketball", basketball_command))
     app.add_handler(CommandHandler("basketball_on", basketball_on_command))
     app.add_handler(CommandHandler("basketball_off", basketball_off_command))
+    app.add_handler(CommandHandler("admins", admins_command))
+    app.add_handler(CommandHandler("add_admin", add_admin_command))
+    app.add_handler(CommandHandler("remove_admin", remove_admin_command))
     app.add_handler(CallbackQueryHandler(callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, flow_message))
     return app

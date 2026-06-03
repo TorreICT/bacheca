@@ -84,11 +84,14 @@ Required bot settings:
 
 ```env
 TELEGRAM_BOT_TOKEN=123456:replace-with-your-token
-TELEGRAM_ALLOWED_CHAT_IDS=123456789,-1001234567890
+TELEGRAM_SUPERADMIN_CHAT_IDS=123456789,-1001234567890
+TELEGRAM_ADMINS_PATH=.cache/telegram-admins.json
 ```
 
-`TELEGRAM_ALLOWED_CHAT_IDS` is a comma-separated allowlist. If it is empty, the
-bot refuses to start; chats not in the list cannot modify state.
+`TELEGRAM_SUPERADMIN_CHAT_IDS` is a comma-separated allowlist for the people who
+can manage access. If it is empty, the bot refuses to start. Regular admins are
+stored in `.cache/telegram-admins.json` by default and can control the whole bar,
+but cannot add or remove other people.
 
 Use `/start` for an introduction and `/panel` for the main inline-button panel.
 Buttons cover show/hide, announcement creation, active announcement listing,
@@ -116,6 +119,17 @@ Raw command shortcuts:
 /basketball_on
 /basketball_off
 ```
+
+Superadmin-only shortcuts:
+
+```text
+/admins
+/add_admin 123456789
+/remove_admin 123456789
+```
+
+Unauthorized chats can still run `/my_id`; send that ID to a superadmin, who can
+then add it with `/add_admin`.
 
 Every announcement still has an end time internally. For one-shot announcements,
 the Telegram bot asks for start time (`ora`/`now` or an ISO datetime) and a
