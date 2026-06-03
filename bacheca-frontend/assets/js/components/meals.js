@@ -8,8 +8,8 @@
         setCompactMode(false);
         renderUnavailableMessage(false);
         dom.setText(dom.byId("meals-status"), "Caricamento");
-        renderStats("stats-pranzo", null);
-        renderStats("stats-cena", null);
+        renderStats("stats-pranzo", null, false);
+        renderStats("stats-cena", null, false);
         renderMenu("menu-pranzo", null);
         renderMenu("menu-cena", null);
     }
@@ -23,8 +23,8 @@
         dom.setText(dom.byId("meals-status"), errors.length ? "Dati parziali" : "Aggiornato");
         setCompactMode(compactNoMenu);
 
-        renderStats("stats-pranzo", stats && stats.pranzo);
-        renderStats("stats-cena", stats && stats.cena);
+        renderStats("stats-pranzo", stats && stats.pranzo, compactNoMenu);
+        renderStats("stats-cena", stats && stats.cena, compactNoMenu);
 
         if (compactNoMenu) {
             clearMenu("menu-pranzo");
@@ -68,13 +68,16 @@
         panel.appendChild(message);
     }
 
-    function renderStats(id, mealStats) {
+    function renderStats(id, mealStats, compact) {
         var mount = dom.byId(id);
         var items = mealStats && mealStats.items ? mealStats.items : [];
 
         dom.clear(mount);
 
         if (!items.length) {
+            if (compact) {
+                return;
+            }
             mount.appendChild(dom.emptyState("Presenze non disponibili"));
             return;
         }

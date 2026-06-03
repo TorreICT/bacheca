@@ -15,7 +15,7 @@
     var randomPhotoLoading = false;
     var menuSlotMarker = null;
     var photoSlotMarker = null;
-    var adaptiveDebugEnabled = true;
+    var adaptiveDebugEnabled = false;
 
     function init() {
         Bacheca.components.clock.init();
