@@ -72,13 +72,16 @@ def normalize_competition(code):
 
 async def load_compact(competition):
     code = normalize_competition(competition)
-    cached = read_cache(code)
+    cache_key = match_cache_key(code)
+    cached = read_cache(cache_key)
+    legacy_cached = read_cache(code)
+    fallback_cached = cached or legacy_cached
 
     if settings.soccer_provider.strip().lower() != "football-data":
-        return unavailable(code, "Soccer provider not supported", cached)
+        return unavailable(code, "Soccer provider not supported", fallback_cached)
 
     if not settings.soccer_api_token:
-        return unavailable(code, "Soccer API token missing", cached)
+        return unavailable(code, "Soccer API token missing", fallback_cached)
 
     if cached and cache_is_fresh(cached):
         return cached["payload"]
@@ -86,10 +89,22 @@ async def load_compact(competition):
     try:
         payload = await fetch_compact(code)
     except Exception as error:
-        return unavailable(code, str(error) or "Soccer unavailable", cached)
+        return unavailable(code, str(error) or "Soccer unavailable", fallback_cached)
 
-    write_cache(code, payload)
+    write_cache(cache_key, payload)
     return payload
+
+
+def match_cache_key(code):
+    return (
+        normalize_competition(code)
+        + ":bar:w"
+        + str(BAR_MATCH_WINDOW_DAYS)
+        + ":r"
+        + str(BAR_RESULT_LIMIT)
+        + ":f"
+        + str(BAR_FIXTURE_LIMIT)
+    )
 
 
 async def fetch_compact(code):
