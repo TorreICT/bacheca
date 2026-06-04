@@ -6,7 +6,8 @@
             calendar: "/api/calendar",
             pizzaIndex: "/api/pizza-index",
             randomPhoto: "/api/random-photo",
-            barWidget: "/api/bar-widget"
+            barWidget: "/api/bar-widget",
+            weather: "/api/weather"
         },
         refreshMs: 15 * 60 * 1000,
         menuRefreshMs: 60 * 1000,
@@ -20,7 +21,7 @@
         logoPath: "assets/img/torrescalla-mark.svg",
         weatherIconBasePath: "assets/img/weather/",
         weather: {
-            providerUrl: "https://api.open-meteo.com/v1/forecast",
+            providerUrl: "/api/weather",
             latitude: 45.4766567,
             longitude: 9.2350757,
             timezone: "Europe/Rome",

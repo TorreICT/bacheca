@@ -44,6 +44,7 @@ http://127.0.0.1:8080/api/calendar
 http://127.0.0.1:8080/api/pizza-index
 http://127.0.0.1:8080/api/random-photo?data=2026-05-29
 http://127.0.0.1:8080/api/bar-widget
+http://127.0.0.1:8080/api/weather?latitude=45.4766567&longitude=9.2350757&timezone=Europe%2FRome&start_date=2026-06-04&end_date=2026-06-08&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min
 ```
 
 ## Configuration
@@ -56,10 +57,13 @@ BACHECA_DASHBOARD_PORT=8080
 BACHECA_STATIC_ROOT=bacheca-frontend
 BACHECA_TIMEZONE=Europe/Rome
 BACHECA_BAR_WIDGET_STATE_PATH=.cache/bar-widget-state.json
+BACHECA_WEATHER_CACHE_PATH=.cache/weather-cache.json
+BACHECA_WEATHER_CACHE_TTL_MS=600000
 MYCOLLEGE_MENU_URL=https://mycollegeapp.rui.it/jsonapi
 MYCOLLEGE_PASTI_URL=https://mycollegeapp.rui.it/jsonapi
 MYCOLLEGE_RESIDENCE=dG9ycmVzY2FsbGE-
 PIZZA_INDEX_URL=https://www.pizzint.watch/api/dashboard-data
+BACHECA_WEATHER_FORECAST_URL=https://api.open-meteo.com/v1/forecast
 GOOGLE_CALENDAR_ID=eventi.torrescalla@fondazionerui.it
 ```
 
@@ -229,8 +233,7 @@ some leagues.
 Team logos are served through the same-origin `/api/basketball/badge` proxy and
 cached under `.cache/basketball-badges/`. Only safe
 `https://www.thesportsdb.com/...` and `https://r2.thesportsdb.com/...` image
-URLs are accepted, so the browser still calls only same-origin dashboard APIs
-plus Open-Meteo weather.
+URLs are accepted, so the browser still calls only same-origin dashboard APIs.
 
 ## Photos
 

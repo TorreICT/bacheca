@@ -46,6 +46,9 @@ class Settings:
     mycollege_turno_singolo = get_bool("MYCOLLEGE_TURNO_SINGOLO", get_bool("TURNO_SINGOLO", False))
 
     pizza_index_url = os.getenv("PIZZA_INDEX_URL", "https://www.pizzint.watch/api/dashboard-data")
+    weather_forecast_url = os.getenv("BACHECA_WEATHER_FORECAST_URL", "https://api.open-meteo.com/v1/forecast")
+    weather_cache_path = resolve_path("BACHECA_WEATHER_CACHE_PATH", ".cache/weather-cache.json")
+    weather_cache_ttl_ms = get_int("BACHECA_WEATHER_CACHE_TTL_MS", 600000)
 
     google_client_email = os.getenv("GOOGLE_CLIENT_EMAIL", "")
     google_private_key = os.getenv("GOOGLE_PRIVATE_KEY", "")
