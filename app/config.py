@@ -82,9 +82,9 @@ class Settings:
     soccer_lookahead_days = get_int("BACHECA_SOCCER_LOOKAHEAD_DAYS", 7)
     soccer_max_items = get_int("BACHECA_SOCCER_MAX_ITEMS", 4)
 
-    basketball_provider = os.getenv("BACHECA_BASKETBALL_PROVIDER", "thesportsdb")
+    basketball_provider = os.getenv("BACHECA_BASKETBALL_PROVIDER", "api-sports")
     basketball_api_token = os.getenv("BACHECA_BASKETBALL_API_TOKEN", "")
-    basketball_base_url = os.getenv("BACHECA_BASKETBALL_BASE_URL", "")
+    basketball_base_url = os.getenv("BACHECA_BASKETBALL_BASE_URL", "https://v1.basketball.api-sports.io")
     basketball_cache_path = resolve_path("BACHECA_BASKETBALL_CACHE_PATH", ".cache/basketball-cache.json")
     basketball_badge_cache_dir = resolve_path("BACHECA_BASKETBALL_BADGE_CACHE_DIR", ".cache/basketball-badges")
     basketball_cache_ttl_ms = get_int("BACHECA_BASKETBALL_CACHE_TTL_MS", 1800000)

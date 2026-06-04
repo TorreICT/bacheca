@@ -305,7 +305,9 @@ def normalize_match(match, current):
             "sortAt": match_time,
         }
 
-    if status in ("SCHEDULED", "TIMED", "IN_PLAY", "PAUSED", "LIVE") and match_time >= current - timedelta(hours=4):
+    if status in ("SCHEDULED", "TIMED", "IN_PLAY", "PAUSED", "LIVE"):
+        if not live and match_time < current - timedelta(hours=4):
+            return None
         return {
             "kind": "fixture",
             "dateLabel": format_match_date(match_time, include_time=True),

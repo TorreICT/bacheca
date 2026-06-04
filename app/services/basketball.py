@@ -15,7 +15,7 @@ from app.services import bar_widget
 COMPETITIONS_CACHE_KEY = "__leagues__"
 BAR_RESULT_TARGET = 2
 BAR_FIXTURE_TARGET = 2
-MATCH_CACHE_VERSION = "v2"
+MATCH_CACHE_VERSION = "v3"
 BADGE_MAX_BYTES = 1024 * 1024
 THESPORTSDB_FREE_KEY = "123"
 THESPORTSDB_BASE_URL = "https://www.thesportsdb.com/api/v1/json"
@@ -149,7 +149,9 @@ async def load_compact(competition, season=None):
     try:
         payload = await fetch_compact(provider, code, selected_season)
     except Exception as error:
-        return unavailable(code, selected_season, str(error) or "Basketball unavailable", cached)
+        payload = unavailable(code, selected_season, str(error) or "Basketball unavailable", cached)
+        write_cache(cache_key, payload)
+        return payload
 
     write_cache(cache_key, payload)
     return payload
@@ -658,7 +660,7 @@ def api_sports_team_score(scores, side):
 def api_sports_stage_label(game):
     league = game.get("league") if isinstance(game.get("league"), dict) else {}
     for source in (game, league):
-        for key in ("round", "stage", "group"):
+        for key in ("stage", "week", "round", "group"):
             label = clean_label(source.get(key))
             if label:
                 return label
@@ -873,28 +875,8 @@ def cache_is_fresh(entry):
         fetched_at = bar_widget.parse_datetime(entry.get("fetchedAt"))
     except Exception:
         return False
-    if payload_needs_live_refresh(entry.get("payload")):
-        return False
     ttl = max(0, settings.basketball_cache_ttl_ms) / 1000.0
     return bar_widget.now() - fetched_at <= timedelta(seconds=ttl)
-
-
-def payload_needs_live_refresh(payload):
-    current = bar_widget.now()
-    if not isinstance(payload, dict):
-        return False
-    for item in payload.get("fixtures") or []:
-        if not isinstance(item, dict):
-            continue
-        if item.get("live"):
-            return True
-        try:
-            match_time = bar_widget.parse_datetime(item.get("time"))
-        except Exception:
-            continue
-        if current - timedelta(hours=1) <= match_time <= current + timedelta(minutes=15):
-            return True
-    return False
 
 
 def read_cache(code):
