@@ -1398,18 +1398,6 @@ p {
     margin-left: 5px;
 }
 
-.bar-widget-soccer-card-label {
-    flex: 0 1 auto;
-    color: rgba(255, 255, 255, 0.76);
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 1;
-    text-transform: uppercase;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
 .bar-widget-soccer-card-date {
     flex: 0 0 auto;
     color: #ffffff;
@@ -1519,6 +1507,25 @@ p {
 .bar-widget-soccer-card-score {
     color: #ffffff;
     font-size: 29px;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.bar-widget-soccer-card-score-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.bar-widget-soccer-card-score-stack > * + * {
+    margin-top: 2px;
+}
+
+.bar-widget-soccer-card-penalty-score {
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 11px;
     font-weight: 700;
     line-height: 1;
     white-space: nowrap;

@@ -275,6 +275,7 @@ def normalize_match(match, current):
     injury_time = normalize_match_number(match.get("injuryTime"))
     score = match.get("score") if isinstance(match.get("score"), dict) else {}
     full_time = score.get("fullTime") if isinstance(score.get("fullTime"), dict) else {}
+    penalties = score.get("penalties") if isinstance(score.get("penalties"), dict) else {}
     stage_label = soccer_stage_label(match)
 
     if status in ("FINISHED", "AWARDED"):
@@ -299,6 +300,7 @@ def normalize_match(match, current):
                 "home": home_score,
                 "away": away_score,
             },
+            "penalties": normalize_score(penalties),
             "text": format_match_date(match_time, include_time=False) + " " + home["abbr"] + " " + str(home_score) + "-" + str(away_score) + " " + away["abbr"],
             "sortAt": match_time,
         }

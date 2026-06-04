@@ -304,13 +304,12 @@
         var middle = dom.create("div", "bar-widget-soccer-card-middle");
         var scoreBlock = dom.create("div", "bar-widget-soccer-score-block");
 
-        top.appendChild(dom.create("span", "bar-widget-soccer-card-label", slide.label || "Sport"));
         top.appendChild(dom.create("strong", "bar-widget-soccer-card-date", sportDateTime(match)));
         if (match.stageLabel) {
             top.appendChild(dom.create("span", "bar-widget-soccer-stage", match.stageLabel));
         }
 
-        scoreBlock.appendChild(dom.create("strong", "bar-widget-soccer-card-score", sportScore(match)));
+        scoreBlock.appendChild(createSportScore(match));
         scoreBlock.appendChild(dom.create("span", match.live ? "bar-widget-soccer-live" : "bar-widget-soccer-status", sportStatus(match)));
 
         middle.appendChild(createSportTeamCard(match.home, "home"));
@@ -366,6 +365,26 @@
             return String(match.score.home) + "-" + String(match.score.away);
         }
         return "vs";
+    }
+
+    function sportPenaltyScore(match) {
+        if (match && match.score && match.score.home === match.score.away && match.penalties && match.penalties.home !== null && match.penalties.home !== undefined && match.penalties.away !== null && match.penalties.away !== undefined) {
+            return "Rigori " + String(match.penalties.home) + "-" + String(match.penalties.away);
+        }
+        return "";
+    }
+
+    function createSportScore(match) {
+        var score = dom.create("strong", "bar-widget-soccer-card-score", sportScore(match));
+        var penalties = sportPenaltyScore(match);
+
+        if (penalties) {
+            score = dom.create("div", "bar-widget-soccer-card-score-stack");
+            score.appendChild(dom.create("strong", "bar-widget-soccer-card-score", sportScore(match)));
+            score.appendChild(dom.create("span", "bar-widget-soccer-card-penalty-score", penalties));
+        }
+
+        return score;
     }
 
     function sportStatus(match) {

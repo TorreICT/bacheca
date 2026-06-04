@@ -548,7 +548,7 @@ def normalize_api_sports_games(code, season, body):
         elif item["kind"] == "fixture":
             fixtures.append(item)
 
-    results.sort(key=lambda item: item["sortAt"], reverse=True)
+    results.sort(key=lambda item: item["sortAt"])
     fixtures.sort(key=lambda item: (0 if item.get("live") else 1, item["sortAt"]))
 
     results, fixtures = select_balanced_games(results, fixtures)
