@@ -209,7 +209,7 @@ def normalize_matches(code, body):
         elif item["kind"] == "fixture":
             fixtures.append(item)
 
-    results.sort(key=lambda item: item["sortAt"], reverse=True)
+    results.sort(key=lambda item: item["sortAt"])
     fixtures.sort(key=lambda item: (0 if item.get("live") else 1, item["sortAt"]))
 
     results, fixtures = select_balanced_matches(results, fixtures)
