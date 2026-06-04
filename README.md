@@ -185,15 +185,14 @@ the browser does not call football-data image URLs directly.
 
 ## Basketball
 
-Basketball is optional and uses API-SPORTS API-Basketball by default. The free
-plan is limited to 100 requests per day, so the backend keeps basketball
-provider refreshes on a strict 30-minute cache TTL, including live games and
-temporary provider failures.
+Basketball is optional and uses TheSportsDB by default. TheSportsDB v1 has a
+public free key path (`123`), so `BACHECA_BASKETBALL_API_TOKEN` can stay blank
+unless you have a premium TheSportsDB key.
 
 ```env
-BACHECA_BASKETBALL_PROVIDER=api-sports
-BACHECA_BASKETBALL_API_TOKEN=your-api-sports-token
-BACHECA_BASKETBALL_BASE_URL=https://v1.basketball.api-sports.io
+BACHECA_BASKETBALL_PROVIDER=thesportsdb
+BACHECA_BASKETBALL_API_TOKEN=
+BACHECA_BASKETBALL_BASE_URL=https://www.thesportsdb.com/api/v1/json
 BACHECA_BASKETBALL_CACHE_PATH=.cache/basketball-cache.json
 BACHECA_BASKETBALL_BADGE_CACHE_DIR=.cache/basketball-badges
 BACHECA_BASKETBALL_CACHE_TTL_MS=1800000
@@ -214,32 +213,24 @@ Season format is usually `YYYY-YYYY`, for example `2025-2026`. If
 `BACHECA_BASKETBALL_DEFAULT_SEASON` and the saved season are blank, the backend
 computes the current European-style season automatically.
 
-The competition picker calls API-SPORTS `/leagues?season=...` when an
-API-SPORTS token is configured. The list is cached in
-`.cache/basketball-cache.json`. If the token is missing or the provider fails,
-the picker returns cached choices when available.
+The competition picker calls TheSportsDB `search_all_leagues.php?s=Basketball`
+and merges the result with a small fallback list for common competitions such as
+NBA, Italian Lega Basket, Spanish Liga ACB, Basketball Champions League,
+EuroCup, ABA League, Australian NBL, and Turkish BSL. The list is cached in
+`.cache/basketball-cache.json`.
 
-API-SPORTS games are fetched from `/games?league=...&season=...&timezone=...`
+TheSportsDB games are fetched from the recent/upcoming league schedule endpoints
 and filtered locally to the configured 30-day lookback/lookahead window. The bar
 shows whatever the provider returns, up to 4 cards: ideally 2 recent results and
-2 upcoming/live games, filling missing slots from either side. API-SPORTS game
-statuses such as `Q1`, `Q2`, `Q3`, `Q4`, `OT`, `BT`, and `HT` are treated as
-live, and `stage` or `week` is shown on the card when the provider includes it.
+2 upcoming/live games, filling missing slots from either side. On the free key,
+TheSportsDB may return fewer cards and less live detail than paid providers for
+some leagues.
 
 Team logos are served through the same-origin `/api/basketball/badge` proxy and
 cached under `.cache/basketball-badges/`. Only safe
-`https://www.thesportsdb.com/...`, `https://r2.thesportsdb.com/...`, and
-API-SPORTS media URLs are accepted, so the browser still calls only same-origin
-dashboard APIs plus Open-Meteo weather.
-
-TheSportsDB remains available as a fallback provider if you want to use its
-public v1 key path instead of API-SPORTS:
-
-```env
-BACHECA_BASKETBALL_PROVIDER=thesportsdb
-BACHECA_BASKETBALL_API_TOKEN=
-BACHECA_BASKETBALL_BASE_URL=https://www.thesportsdb.com/api/v1/json
-```
+`https://www.thesportsdb.com/...` and `https://r2.thesportsdb.com/...` image
+URLs are accepted, so the browser still calls only same-origin dashboard APIs
+plus Open-Meteo weather.
 
 ## Photos
 
