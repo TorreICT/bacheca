@@ -28,10 +28,26 @@
             return "";
         }
         if (typeof dish === "string") {
-            return capitalizeDishName(dish);
+            name = capitalizeDishName(dish);
+            return isUnavailableDishName(name) ? "" : name;
         }
         name = dish.piatto || dish.nome || "";
-        return capitalizeDishName(name);
+        name = capitalizeDishName(name);
+        return isUnavailableDishName(name) ? "" : name;
+    }
+
+    function isUnavailableDishName(name) {
+        var text = String(name || "").replace(/^\s+|\s+$/g, "").toLowerCase();
+        text = text.replace(/\u00e8/g, "e").replace(/\u00e9/g, "e");
+        if (!text || text === "-" || text === "n.d." || text === "nd") {
+            return true;
+        }
+        return text.indexOf("menu non disponibile") !== -1 ||
+            text.indexOf("menu non ancora") !== -1 ||
+            text.indexOf("menu non e ancora") !== -1 ||
+            text.indexOf("non disponibile") !== -1 ||
+            text.indexOf("non ancora uscito") !== -1 ||
+            text.indexOf("nessun menu") !== -1;
     }
 
     function normalizeMeal(rawMeal) {

@@ -42,7 +42,7 @@ p {
 }
 
 .dashboard.has-bar-widget {
-    grid-template-rows: 150px 112px 96px minmax(0, 1fr);
+    grid-template-rows: 150px 112px 118px minmax(0, 1fr);
 }
 
 .dashboard-header,
@@ -227,7 +227,7 @@ p {
     grid-row: 3;
     min-width: 0;
     min-height: 0;
-    padding: 4px 8px;
+    padding: 6px 10px;
     overflow: hidden;
     background: #1565c0;
     display: flex;
@@ -248,6 +248,28 @@ p {
 
 .dashboard.has-bar-widget .side-stack {
     grid-row: 1 / span 4;
+}
+
+.dashboard.menu-photo-mode .random-photo-panel {
+    grid-column: 1;
+    grid-row: 3;
+    width: auto;
+    min-width: 0;
+    min-height: 0;
+}
+
+.dashboard.has-bar-widget.menu-photo-mode .random-photo-panel {
+    grid-row: 4;
+}
+
+.dashboard.menu-photo-mode .side-stack .meals-panel {
+    grid-column: auto;
+    grid-row: auto;
+    flex: 0 0 auto;
+    width: auto;
+    min-height: 0;
+    padding: 12px;
+    overflow: visible;
 }
 
 .meals-panel {
@@ -546,6 +568,96 @@ p {
     overflow-wrap: anywhere;
 }
 
+.meals-panel.is-menu-unavailable-compact .meals-grid {
+    height: auto;
+    min-height: 0;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.meals-panel.is-menu-unavailable-compact .meal-block {
+    min-height: 82px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    overflow: visible;
+}
+
+.meals-panel.is-menu-unavailable-compact .meal-block + .meal-block {
+    margin-left: 0;
+    margin-top: 8px;
+}
+
+.meals-panel.is-menu-unavailable-compact .meal-header {
+    flex: 0 0 68px;
+    margin-right: 10px;
+    margin-bottom: 0;
+    text-align: left;
+    justify-content: flex-start;
+}
+
+.meals-panel.is-menu-unavailable-compact .meal-header h3 {
+    font-size: 19px;
+    line-height: 1;
+}
+
+.meals-panel.is-menu-unavailable-compact .stats-grid {
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    margin: 0;
+    overflow: visible;
+}
+
+.meals-panel.is-menu-unavailable-compact .stats-grid > * + * {
+    margin-left: 6px;
+}
+
+.meals-panel.is-menu-unavailable-compact .stat-item {
+    flex: 0 0 56px;
+    width: 56px;
+    height: 56px;
+}
+
+.meals-panel.is-menu-unavailable-compact .stat-ring-canvas {
+    width: 56px;
+    height: 56px;
+}
+
+.meals-panel.is-menu-unavailable-compact .stat-ring-icon {
+    top: 10px;
+    width: 21px;
+    height: 21px;
+}
+
+.meals-panel.is-menu-unavailable-compact .stat-ring-value {
+    top: 36px;
+    font-size: 13px;
+}
+
+.meals-panel.is-menu-unavailable-compact .menu-list {
+    display: none !important;
+}
+
+.meals-panel.is-menu-unavailable-compact .empty-state {
+    display: none;
+}
+
+.menu-unavailable-message {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #202226;
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.1;
+    text-align: center;
+}
+
 .event-list {
     display: flex;
     flex-direction: column;
@@ -730,6 +842,10 @@ p {
 
 .dashboard.has-bar-widget .meals-panel {
     grid-row: 4;
+}
+
+.dashboard.menu-photo-mode .random-photo-content {
+    height: 100%;
 }
 
 .weather-main {
@@ -1055,6 +1171,14 @@ p {
         overflow: visible;
     }
 
+    .dashboard.menu-photo-mode .random-photo-content {
+        height: 245px;
+    }
+
+    .dashboard.menu-photo-mode .side-stack .meals-panel {
+        overflow: visible;
+    }
+
     .events-panel,
     .meal-block,
     .forecast-panel,
@@ -1149,7 +1273,7 @@ p {
     width: 100%;
     height: 100%;
     min-width: 0;
-    padding: 4px 6px;
+    padding: 6px 8px;
     border-radius: 8px;
     background: rgba(0, 0, 0, 0.2);
     display: flex;
@@ -1163,7 +1287,7 @@ p {
 .bar-widget-label {
     flex: 0 0 auto;
     color: rgba(255, 255, 255, 0.78);
-    font-size: 15px;
+    font-size: 17px;
     font-weight: 700;
     line-height: 1;
     text-transform: uppercase;
@@ -1180,7 +1304,7 @@ p {
     display: block;
     min-width: 0;
     color: #ffffff;
-    font-size: 34px;
+    font-size: 40px;
     font-weight: 700;
     line-height: 1.18;
     padding-bottom: 2px;
@@ -1190,7 +1314,7 @@ p {
 }
 
 .bar-widget-countdown-value {
-    font-size: 32px;
+    font-size: 38px;
 }
 
 .bar-widget-soccer-slide {
@@ -1220,7 +1344,7 @@ p {
 .bar-widget-soccer-title {
     min-width: 0;
     color: #ffffff;
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 700;
     line-height: 1;
     white-space: nowrap;
@@ -1246,8 +1370,8 @@ p {
 .bar-widget-soccer-card {
     flex: 1 1 0;
     min-width: 0;
-    max-width: 270px;
-    padding: 5px 7px;
+    max-width: 300px;
+    padding: 7px 9px;
     border-radius: 7px;
     background: rgba(255, 255, 255, 0.08);
     display: flex;
@@ -1277,7 +1401,7 @@ p {
 .bar-widget-soccer-card-label {
     flex: 0 1 auto;
     color: rgba(255, 255, 255, 0.76);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     line-height: 1;
     text-transform: uppercase;
@@ -1289,7 +1413,7 @@ p {
 .bar-widget-soccer-card-date {
     flex: 0 0 auto;
     color: #ffffff;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
     line-height: 1;
     white-space: nowrap;
@@ -1322,8 +1446,8 @@ p {
 }
 
 .bar-widget-soccer-team-visual {
-    width: 28px;
-    height: 28px;
+    width: 34px;
+    height: 34px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1332,8 +1456,8 @@ p {
 
 .bar-widget-soccer-team-badge {
     display: block;
-    max-width: 28px;
-    max-height: 28px;
+    max-width: 34px;
+    max-height: 34px;
     object-fit: contain;
 }
 
@@ -1344,7 +1468,7 @@ p {
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.14);
     color: #ffffff;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     line-height: 1;
 }
@@ -1356,7 +1480,7 @@ p {
 .bar-widget-soccer-team-abbr {
     max-width: 100%;
     color: #ffffff;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     line-height: 1;
     white-space: nowrap;
@@ -1366,7 +1490,7 @@ p {
 
 .bar-widget-soccer-score-block {
     flex: 0 0 auto;
-    min-width: 52px;
+    min-width: 60px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1379,7 +1503,7 @@ p {
 
 .bar-widget-soccer-card-score {
     color: #ffffff;
-    font-size: 24px;
+    font-size: 29px;
     font-weight: 700;
     line-height: 1;
     white-space: nowrap;
@@ -1388,7 +1512,7 @@ p {
 .bar-widget-soccer-live,
 .bar-widget-soccer-status {
     color: rgba(255, 255, 255, 0.76);
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
     line-height: 1;
     text-transform: uppercase;
@@ -1404,7 +1528,7 @@ p {
 
 .bar-widget-soccer-message {
     color: #ffffff;
-    font-size: 24px;
+    font-size: 29px;
     font-weight: 700;
     line-height: 1.18;
     white-space: nowrap;
