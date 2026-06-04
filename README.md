@@ -61,6 +61,10 @@ BACHECA_WEATHER_FORECAST_URL=https://api.open-meteo.com/v1/forecast
 BACHECA_WEATHER_REVERSE_GEOCODE_URL=https://nominatim.openstreetmap.org/reverse
 BACHECA_WEATHER_CACHE_PATH=.cache/weather-cache.json
 BACHECA_WEATHER_CACHE_TTL_MS=600000
+BACHECA_MARKET_BASE_URL=https://stooq.com/q/l/
+BACHECA_MARKET_CACHE_PATH=.cache/market-cache.json
+BACHECA_MARKET_CACHE_TTL_MS=300000
+BACHECA_MARKET_MAX_ITEMS=4
 MYCOLLEGE_MENU_URL=https://mycollegeapp.rui.it/jsonapi
 MYCOLLEGE_PASTI_URL=https://mycollegeapp.rui.it/jsonapi
 MYCOLLEGE_RESIDENCE=dG9ycmVzY2FsbGE-
@@ -124,6 +128,10 @@ Raw command shortcuts:
 /basketball 12 2025-2026
 /basketball_on
 /basketball_off
+/markets
+/markets ^SPX | S&P 500
+/markets_on
+/markets_off
 ```
 
 Superadmin-only shortcuts:
@@ -235,6 +243,30 @@ Team logos are served through the same-origin `/api/basketball/badge` proxy and
 cached under `.cache/basketball-badges/`. Only safe
 `https://www.thesportsdb.com/...` and `https://r2.thesportsdb.com/...` image
 URLs are accepted, so the browser still calls only same-origin dashboard APIs.
+
+## Market indexes
+
+Market indexes are optional and use Stooq quote CSV by default, with no API key:
+
+```env
+BACHECA_MARKET_BASE_URL=https://stooq.com/q/l/
+BACHECA_MARKET_CACHE_PATH=.cache/market-cache.json
+BACHECA_MARKET_CACHE_TTL_MS=300000
+BACHECA_MARKET_MAX_ITEMS=4
+```
+
+Use the Telegram panel button `Mercati` to enable/disable the module, toggle
+common indexes, or add a custom Stooq symbol. The raw shortcut is:
+
+```text
+/markets <symbol> [| label]
+```
+
+Examples: `/markets ^SPX | S&P 500` or `/markets ^UKX | FTSE 100`.
+The default selection is S&P 500, Dow Jones, Nasdaq 100, and DAX. The bar
+shows up to 4 compact market cards using the last value and change versus the
+previous close. If Stooq is unavailable, stale cached quotes are used when
+available; otherwise the slide shows a short unavailable message.
 
 ## Photos
 
