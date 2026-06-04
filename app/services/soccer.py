@@ -28,6 +28,7 @@ BAR_MATCH_WINDOW_DAYS = 30
 BAR_MATCH_TOTAL_LIMIT = 4
 BAR_RESULT_TARGET = 2
 BAR_FIXTURE_TARGET = 2
+MATCH_CACHE_VERSION = "v2"
 BADGE_HOST = "crests.football-data.org"
 BADGE_MAX_BYTES = 1024 * 1024
 
@@ -99,6 +100,8 @@ async def load_compact(competition):
 def match_cache_key(code):
     return (
         normalize_competition(code)
+        + ":"
+        + MATCH_CACHE_VERSION
         + ":bar:w"
         + str(BAR_MATCH_WINDOW_DAYS)
         + ":t"
@@ -207,12 +210,12 @@ def normalize_matches(code, body):
             fixtures.append(item)
 
     results.sort(key=lambda item: item["sortAt"], reverse=True)
-    fixtures.sort(key=lambda item: item["sortAt"])
+    fixtures.sort(key=lambda item: (0 if item.get("live") else 1, item["sortAt"]))
 
     results, fixtures = select_balanced_matches(results, fixtures)
-    items = results + fixtures
+    items = live_matches(fixtures) + results + non_live_matches(fixtures)
 
-    for item in items:
+    for item in results + fixtures + items:
         item.pop("sortAt", None)
 
     return {
@@ -246,6 +249,14 @@ def select_balanced_matches(results, fixtures):
     return results[:result_limit], fixtures[:fixture_limit]
 
 
+def live_matches(fixtures):
+    return [item for item in fixtures if item.get("live")]
+
+
+def non_live_matches(fixtures):
+    return [item for item in fixtures if not item.get("live")]
+
+
 def normalize_match(match, current):
     if not isinstance(match, dict):
         return None
@@ -264,6 +275,7 @@ def normalize_match(match, current):
     injury_time = normalize_match_number(match.get("injuryTime"))
     score = match.get("score") if isinstance(match.get("score"), dict) else {}
     full_time = score.get("fullTime") if isinstance(score.get("fullTime"), dict) else {}
+    stage_label = soccer_stage_label(match)
 
     if status in ("FINISHED", "AWARDED"):
         home_score = full_time.get("home")
@@ -277,6 +289,7 @@ def normalize_match(match, current):
             "displayTime": format_match_time(match_time),
             "time": bar_widget.isoformat(match_time),
             "status": status,
+            "stageLabel": stage_label,
             "minute": minute,
             "injuryTime": injury_time,
             "live": False,
@@ -298,6 +311,7 @@ def normalize_match(match, current):
             "displayTime": format_match_time(match_time),
             "time": bar_widget.isoformat(match_time),
             "status": status,
+            "stageLabel": stage_label,
             "minute": minute,
             "injuryTime": injury_time,
             "live": live,
@@ -373,6 +387,27 @@ def normalize_score(score):
         "home": home,
         "away": away,
     }
+
+
+def soccer_stage_label(match):
+    parts = []
+    stage = clean_label(match.get("stage"))
+    group = clean_label(match.get("group"))
+    matchday = normalize_match_number(match.get("matchday"))
+    if stage:
+        parts.append(stage)
+    if group:
+        parts.append(group)
+    if matchday is not None:
+        parts.append("Giornata " + str(matchday))
+    return " - ".join(parts)[:40]
+
+
+def clean_label(value):
+    text = str(value or "").replace("_", " ").strip()
+    if not text:
+        return ""
+    return " ".join(part.capitalize() for part in text.split())[:40]
 
 
 def unavailable(code, message, cached=None):
@@ -469,8 +504,28 @@ def cache_is_fresh(entry):
         fetched_at = bar_widget.parse_datetime(entry.get("fetchedAt"))
     except Exception:
         return False
+    if payload_needs_live_refresh(entry.get("payload")):
+        return False
     ttl = max(0, settings.soccer_cache_ttl_ms) / 1000.0
     return bar_widget.now() - fetched_at <= timedelta(seconds=ttl)
+
+
+def payload_needs_live_refresh(payload):
+    current = bar_widget.now()
+    if not isinstance(payload, dict):
+        return False
+    for item in payload.get("fixtures") or []:
+        if not isinstance(item, dict):
+            continue
+        if item.get("live"):
+            return True
+        try:
+            match_time = bar_widget.parse_datetime(item.get("time"))
+        except Exception:
+            continue
+        if current - timedelta(hours=1) <= match_time <= current + timedelta(minutes=15):
+            return True
+    return False
 
 
 def read_cache(code):

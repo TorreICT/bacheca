@@ -306,6 +306,9 @@
 
         top.appendChild(dom.create("span", "bar-widget-soccer-card-label", slide.label || "Sport"));
         top.appendChild(dom.create("strong", "bar-widget-soccer-card-date", sportDateTime(match)));
+        if (match.stageLabel) {
+            top.appendChild(dom.create("span", "bar-widget-soccer-stage", match.stageLabel));
+        }
 
         scoreBlock.appendChild(dom.create("strong", "bar-widget-soccer-card-score", sportScore(match)));
         scoreBlock.appendChild(dom.create("span", match.live ? "bar-widget-soccer-live" : "bar-widget-soccer-status", sportStatus(match)));
