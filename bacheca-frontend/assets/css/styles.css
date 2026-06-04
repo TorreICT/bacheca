@@ -897,7 +897,6 @@ p {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
     color: #cfd3d8;
     font-size: 12px;
     font-weight: 700;
@@ -913,6 +912,7 @@ p {
     border: 2px solid #cfd3d8;
     border-radius: 7px 7px 7px 0;
     transform: rotate(-45deg);
+    margin-right: 6px;
 }
 
 .weather-location-icon::after {
