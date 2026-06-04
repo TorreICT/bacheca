@@ -1677,7 +1677,7 @@ p {
 }
 
 .bar-widget-market-card > * + * {
-    margin-top: 4px;
+    margin-top: 3px;
 }
 
 .bar-widget-market-card-top {
@@ -1719,18 +1719,18 @@ p {
 }
 
 .bar-widget-market-value {
-    color: #ffffff;
-    font-size: 27px;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 12px;
     font-weight: 700;
-    line-height: 1;
+    line-height: 1.15;
     white-space: nowrap;
 }
 
 .bar-widget-market-change {
     color: rgba(255, 255, 255, 0.78);
-    font-size: 13px;
-    font-weight: 700;
-    line-height: 1;
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 1.05;
     white-space: nowrap;
 }
 

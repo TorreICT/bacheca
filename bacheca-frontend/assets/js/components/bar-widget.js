@@ -401,16 +401,16 @@
         var top = dom.create("div", "bar-widget-market-card-top");
         var label = dom.create("strong", "bar-widget-market-name", data.label || data.symbol || "Indice");
         var symbol = dom.create("span", "bar-widget-market-symbol", data.symbol || "");
-        var value = dom.create("strong", "bar-widget-market-value", formatMarketValue(data.value));
-        var change = dom.create("span", "bar-widget-market-change", formatMarketChange(data));
+        var change = dom.create("strong", "bar-widget-market-change", formatMarketChange(data));
+        var value = dom.create("span", "bar-widget-market-value", "Valore " + formatMarketValue(data.value));
 
         top.appendChild(label);
         if (data.symbol) {
             top.appendChild(symbol);
         }
         item.appendChild(top);
-        item.appendChild(value);
         item.appendChild(change);
+        item.appendChild(value);
         return item;
     }
 
@@ -623,7 +623,7 @@
             return "--";
         }
         sign = change > 0 ? "+" : "";
-        return sign + formatDecimal(change, 2) + " (" + sign + formatDecimal(percent, 2) + "%)";
+        return sign + formatDecimal(percent, 2) + "% (" + sign + formatDecimal(change, 2) + ")";
     }
 
     function formatDecimal(value, decimals) {
