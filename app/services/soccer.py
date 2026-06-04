@@ -300,7 +300,7 @@ def normalize_match(match, current):
                 "home": home_score,
                 "away": away_score,
             },
-            "penalties": normalize_score(penalties),
+            "penalties": normalize_penalties(penalties),
             "text": format_match_date(match_time, include_time=False) + " " + home["abbr"] + " " + str(home_score) + "-" + str(away_score) + " " + away["abbr"],
             "sortAt": match_time,
         }
@@ -383,6 +383,19 @@ def normalize_score(score):
         return None
     home = score.get("home")
     away = score.get("away")
+    if home is None or away is None:
+        return None
+    return {
+        "home": home,
+        "away": away,
+    }
+
+
+def normalize_penalties(penalties):
+    if not isinstance(penalties, dict):
+        return None
+    home = penalties.get("homeTeam")
+    away = penalties.get("awayTeam")
     if home is None or away is None:
         return None
     return {
