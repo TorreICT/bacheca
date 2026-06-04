@@ -147,7 +147,7 @@ def main_keyboard():
             ],
             [
                 InlineKeyboardButton("🏀 Basket", callback_data="basketball_menu"),
-                InlineKeyboardButton("Mercati", callback_data="markets_menu"),
+                InlineKeyboardButton("📈 Mercati", callback_data="markets_menu"),
             ],
             [
                 InlineKeyboardButton("📊 Stato", callback_data="status"),
@@ -238,12 +238,12 @@ def markets_keyboard():
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("Attiva", callback_data="markets_on"),
-                InlineKeyboardButton("Disattiva", callback_data="markets_off"),
+                InlineKeyboardButton("✅ Attiva", callback_data="markets_on"),
+                InlineKeyboardButton("⛔ Disattiva", callback_data="markets_off"),
             ],
-            [InlineKeyboardButton("Scegli indici", callback_data="markets_symbols_menu")],
-            [InlineKeyboardButton("Aggiungi simbolo", callback_data="markets_symbol_add")],
-            [InlineKeyboardButton("Indietro", callback_data="panel")],
+            [InlineKeyboardButton("📊 Scegli indici", callback_data="markets_symbols_menu")],
+            [InlineKeyboardButton("➕ Aggiungi simbolo", callback_data="markets_symbol_add")],
+            [InlineKeyboardButton("⬅️ Indietro", callback_data="panel")],
         ]
     )
 
@@ -267,13 +267,13 @@ def market_symbols_keyboard():
     for item in (state.get("markets") or {}).get("symbols") or []:
         if item.get("symbol") and not common.get(item.get("symbol")):
             rows.append([InlineKeyboardButton(market_button_label(item, True), callback_data="market_toggle:" + item["symbol"])])
-    rows.append([InlineKeyboardButton("Aggiungi simbolo", callback_data="markets_symbol_add")])
-    rows.append([InlineKeyboardButton("Indietro", callback_data="markets_menu")])
+    rows.append([InlineKeyboardButton("➕ Aggiungi simbolo", callback_data="markets_symbol_add")])
+    rows.append([InlineKeyboardButton("⬅️ Indietro", callback_data="markets_menu")])
     return InlineKeyboardMarkup(rows)
 
 
 def market_button_label(choice, selected):
-    prefix = "[x] " if selected else "[ ] "
+    prefix = "✅ " if selected else "⬜ "
     return prefix + str(choice.get("label") or choice.get("symbol") or "")
 
 
@@ -435,7 +435,7 @@ def status_text():
         "⏳ Countdown: " + (countdown.get("to") if countdown else "nessuno"),
         "⚽ Calcio: " + ("attivo" if soccer_state.get("enabled") else "spento") + " " + str(soccer_state.get("competition") or "SA"),
         "🏀 Basket: " + ("attivo" if basketball_state.get("enabled") else "spento") + " " + str(basketball_state.get("competition") or "-") + " stagione " + basketball_season,
-        "Mercati: " + ("attivi" if markets_state.get("enabled") else "spenti") + " " + market_symbols_text(markets_state),
+        "📈 Mercati: " + ("attivi" if markets_state.get("enabled") else "spenti") + " " + market_symbols_text(markets_state),
         "👥 Admin: " + str(len(admins)) + " admin / " + str(len(superadmins)) + " superadmin",
     ]
     return "\n".join(parts)
@@ -666,15 +666,15 @@ async def callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         start_flow(context, "basketball_season", "value", {})
         await query.edit_message_text("📅 Scrivi la stagione basket, per esempio 2025-2026. Usa /cancel per fermarti.")
     elif data == "markets_menu":
-        await query.edit_message_text("Gestione mercati.", reply_markup=markets_keyboard())
+        await query.edit_message_text("📈 Gestione mercati.", reply_markup=markets_keyboard())
     elif data == "markets_on":
         bar_widget.set_markets_enabled(True)
-        await query.edit_message_text("Mercati attivati.", reply_markup=main_keyboard())
+        await query.edit_message_text("📈 Mercati attivati.", reply_markup=main_keyboard())
     elif data == "markets_off":
         bar_widget.set_markets_enabled(False)
-        await query.edit_message_text("Mercati disattivati.", reply_markup=main_keyboard())
+        await query.edit_message_text("⛔ Mercati disattivati.", reply_markup=main_keyboard())
     elif data == "markets_symbols_menu":
-        await query.edit_message_text("Scegli gli indici da mostrare. Massimo " + str(settings.market_max_items) + ".", reply_markup=market_symbols_keyboard())
+        await query.edit_message_text("📊 Scegli gli indici da mostrare. Massimo " + str(settings.market_max_items) + ".", reply_markup=market_symbols_keyboard())
     elif data.startswith("market_toggle:"):
         symbol = data.split(":", 1)[1]
         try:
@@ -682,10 +682,10 @@ async def callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except ValueError as error:
             await query.edit_message_text(str(error), reply_markup=market_symbols_keyboard())
             return
-        await query.edit_message_text(("Indice selezionato: " if selected else "Indice rimosso: ") + markets.common_label(symbol), reply_markup=market_symbols_keyboard())
+        await query.edit_message_text(("✅ Indice selezionato: " if selected else "🗑️ Indice rimosso: ") + markets.common_label(symbol), reply_markup=market_symbols_keyboard())
     elif data == "markets_symbol_add":
         start_flow(context, "market_symbol", "value", {})
-        await query.edit_message_text("Scrivi il simbolo Stooq, oppure simbolo | etichetta. Esempio: ^SPX | S&P 500. Usa /cancel per fermarti.")
+        await query.edit_message_text("➕ Scrivi il simbolo Stooq, oppure simbolo | etichetta. Esempio: ^SPX | S&P 500. Usa /cancel per fermarti.")
 
 
 def start_flow(context, name, step, data):
@@ -815,7 +815,7 @@ async def handle_market_symbol_flow(update, context, flow):
     entry = parse_market_symbol_text(clean_message(update))
     bar_widget.add_market_symbol(entry["symbol"], entry["label"])
     context.user_data.pop(FLOW_KEY, None)
-    await update.message.reply_text("Indice aggiunto: " + entry["label"] + " (" + entry["symbol"] + ").", reply_markup=markets_keyboard())
+    await update.message.reply_text("➕ Indice aggiunto: " + entry["label"] + " (" + entry["symbol"] + ").", reply_markup=markets_keyboard())
 
 
 def parse_market_symbol_text(text):
@@ -1052,7 +1052,7 @@ async def markets_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     raw = " ".join(context.args or []).strip()
     if not raw:
-        await update.message.reply_text("Mercati. Usa i pulsanti o invia /markets ^SPX | S&P 500", reply_markup=markets_keyboard())
+        await update.message.reply_text("📈 Mercati. Usa i pulsanti o invia /markets ^SPX | S&P 500", reply_markup=markets_keyboard())
         return
     try:
         entry = parse_market_symbol_text(raw)
@@ -1060,7 +1060,7 @@ async def markets_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except ValueError as error:
         await update.message.reply_text(str(error), reply_markup=markets_keyboard())
         return
-    await update.message.reply_text("Indice aggiunto: " + entry["label"] + " (" + entry["symbol"] + ").", reply_markup=markets_keyboard())
+    await update.message.reply_text("➕ Indice aggiunto: " + entry["label"] + " (" + entry["symbol"] + ").", reply_markup=markets_keyboard())
 
 
 async def markets_on_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1068,7 +1068,7 @@ async def markets_on_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await deny(update)
         return
     bar_widget.set_markets_enabled(True)
-    await update.message.reply_text("Mercati attivati.", reply_markup=main_keyboard())
+    await update.message.reply_text("📈 Mercati attivati.", reply_markup=main_keyboard())
 
 
 async def markets_off_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1076,7 +1076,7 @@ async def markets_off_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         await deny(update)
         return
     bar_widget.set_markets_enabled(False)
-    await update.message.reply_text("Mercati disattivati.", reply_markup=main_keyboard())
+    await update.message.reply_text("⛔ Mercati disattivati.", reply_markup=main_keyboard())
 
 
 def admin_list_text():
