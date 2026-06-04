@@ -22,8 +22,8 @@
         weatherIconBasePath: "assets/img/weather/",
         weather: {
             providerUrl: "/api/weather",
-            latitude: 45.4766567,
-            longitude: 9.2350757,
+            latitude: 45.478,
+            longitude: 9.229,
             timezone: "Europe/Rome",
             forecastDays: 5,
             current: [

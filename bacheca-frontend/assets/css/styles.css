@@ -856,6 +856,7 @@ p {
     background: #202226;
     box-shadow: 0 7px 16px rgba(0, 0, 0, 0.18);
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
 }
@@ -888,6 +889,46 @@ p {
     font-weight: 700;
     white-space: normal;
     overflow-wrap: break-word;
+}
+
+.weather-location {
+    margin-top: 8px;
+    max-width: 190px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: #cfd3d8;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.15;
+    text-align: center;
+}
+
+.weather-location-icon {
+    position: relative;
+    flex: 0 0 auto;
+    width: 11px;
+    height: 14px;
+    border: 2px solid #cfd3d8;
+    border-radius: 7px 7px 7px 0;
+    transform: rotate(-45deg);
+}
+
+.weather-location-icon::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: #cfd3d8;
+}
+
+.weather-location-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .weather-details {

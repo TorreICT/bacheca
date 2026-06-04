@@ -115,7 +115,8 @@
                 windSpeed: round(current.wind_speed_10m),
                 code: current.weather_code,
                 label: labelFor(current.weather_code),
-                icon: iconFor(current.weather_code)
+                icon: iconFor(current.weather_code),
+                location: response.location || ""
             },
             days: days
         };
