@@ -16,14 +16,14 @@ api: {
     calendar: "/api/calendar",
     pizzaIndex: "/api/pizza-index",
     randomPhoto: "/api/random-photo",
-    barWidget: "/api/bar-widget"
+    barWidget: "/api/bar-widget",
+    weather: "/api/weather"
 }
 ```
 
 The browser calls same-origin dashboard APIs for backend-owned data, including
-the Telegram-controlled bar widget. It never calls Telegram or soccer providers
-directly. The only direct browser-side external data call is weather, via
-Open-Meteo.
+the Telegram-controlled bar widget and weather. It never calls Telegram, soccer,
+basketball, or Open-Meteo providers directly.
 
 ## Compatibility
 

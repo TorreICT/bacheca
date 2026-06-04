@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
-from app.services import bar_widget, basketball, calendar, mycollege, photos, pizza, soccer
+from app.services import bar_widget, basketball, calendar, mycollege, photos, pizza, soccer, weather
 
 
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -79,6 +79,49 @@ async def api_pizza_index():
         return JSONResponse(
             status_code=502,
             content={"error": "Pizza index not available", "detail": str(error)},
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
+
+
+@app.get("/api/weather")
+async def api_weather(
+    latitude: float = Query(..., ge=-90, le=90),
+    longitude: float = Query(..., ge=-180, le=180),
+    timezone: str = Query(...),
+    start_date: str = Query(...),
+    end_date: str = Query(...),
+    current: str = Query(...),
+    daily: str = Query(...),
+):
+    try:
+        return JSONResponse(
+            content=await weather.load_forecast(latitude, longitude, timezone, start_date, end_date, current, daily),
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
+    except weather.WeatherRequestError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    except httpx.HTTPError as error:
+        return JSONResponse(
+            status_code=502,
+            content={"error": "Weather not available", "detail": str(error)},
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
+    except ValueError as error:
+        return JSONResponse(
+            status_code=502,
+            content={"error": "Weather response malformed", "detail": str(error)},
             headers={
                 "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
                 "Pragma": "no-cache",

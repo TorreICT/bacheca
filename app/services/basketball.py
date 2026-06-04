@@ -15,6 +15,7 @@ from app.services import bar_widget
 COMPETITIONS_CACHE_KEY = "__leagues__"
 BAR_RESULT_TARGET = 2
 BAR_FIXTURE_TARGET = 2
+MATCH_CACHE_VERSION = "v3"
 BADGE_MAX_BYTES = 1024 * 1024
 THESPORTSDB_FREE_KEY = "123"
 THESPORTSDB_BASE_URL = "https://www.thesportsdb.com/api/v1/json"
@@ -148,7 +149,9 @@ async def load_compact(competition, season=None):
     try:
         payload = await fetch_compact(provider, code, selected_season)
     except Exception as error:
-        return unavailable(code, selected_season, str(error) or "Basketball unavailable", cached)
+        payload = unavailable(code, selected_season, str(error) or "Basketball unavailable", cached)
+        write_cache(cache_key, payload)
+        return payload
 
     write_cache(cache_key, payload)
     return payload
@@ -159,6 +162,8 @@ def match_cache_key(code, season):
         normalize_competition(code)
         + ":"
         + normalize_season(season)
+        + ":"
+        + MATCH_CACHE_VERSION
         + ":bar:w"
         + str(settings.basketball_lookback_days)
         + ":"
@@ -299,13 +304,13 @@ def normalize_tsd_events(code, season, events):
         elif item["kind"] == "fixture":
             fixtures.append(item)
 
-    results.sort(key=lambda item: item["sortAt"], reverse=True)
+    results.sort(key=lambda item: item["sortAt"])
     fixtures.sort(key=lambda item: (0 if item.get("live") else 1, item["sortAt"]))
 
     results, fixtures = select_balanced_games(results, fixtures)
-    items = results + fixtures
+    items = live_games(fixtures) + results + non_live_games(fixtures)
 
-    for item in items:
+    for item in results + fixtures + items:
         item.pop("sortAt", None)
 
     return {
@@ -353,12 +358,12 @@ def normalize_tsd_event(event, current, start, end, season):
     if status in FINISHED_STATUSES:
         if home_score is None or away_score is None:
             return None
-        return match_payload("result", match_time, status, "", False, home, away, home_score, away_score)
+        return match_payload("result", match_time, status, "", False, home, away, home_score, away_score, tsd_stage_label(event))
 
     if status in SCHEDULED_STATUSES or live:
         if not live and match_time < current - timedelta(hours=4):
             return None
-        return match_payload("fixture", match_time, status or "NS", status if live else "", live, home, away, home_score, away_score)
+        return match_payload("fixture", match_time, status or "NS", status if live else "", live, home, away, home_score, away_score, tsd_stage_label(event))
 
     return None
 
@@ -378,7 +383,7 @@ def normalize_tsd_team(event, side):
     }
 
 
-def match_payload(kind, match_time, status, period, live, home, away, home_score, away_score):
+def match_payload(kind, match_time, status, period, live, home, away, home_score, away_score, stage_label=""):
     score = normalize_score(home_score, away_score)
     return {
         "kind": kind,
@@ -388,6 +393,7 @@ def match_payload(kind, match_time, status, period, live, home, away, home_score
         "time": bar_widget.isoformat(match_time),
         "status": status,
         "statusLabel": status,
+        "stageLabel": stage_label,
         "period": period,
         "live": bool(live),
         "home": home,
@@ -402,6 +408,22 @@ def match_text(kind, match_time, home, away, score):
     if kind == "result" and score:
         return format_game_date(match_time, include_time=False) + " " + home["abbr"] + " " + str(score["home"]) + "-" + str(score["away"]) + " " + away["abbr"]
     return format_game_date(match_time, include_time=True) + " " + home["abbr"] + " vs " + away["abbr"]
+
+
+def live_games(fixtures):
+    return [item for item in fixtures if item.get("live")]
+
+
+def non_live_games(fixtures):
+    return [item for item in fixtures if not item.get("live")]
+
+
+def tsd_stage_label(event):
+    for key in ("strRound", "strStage", "strGroup"):
+        label = clean_label(event.get(key))
+        if label:
+            return label
+    return ""
 
 
 def tsd_event_competition_label(code, season, events):
@@ -528,13 +550,13 @@ def normalize_api_sports_games(code, season, body):
         elif item["kind"] == "fixture":
             fixtures.append(item)
 
-    results.sort(key=lambda item: item["sortAt"], reverse=True)
+    results.sort(key=lambda item: item["sortAt"])
     fixtures.sort(key=lambda item: (0 if item.get("live") else 1, item["sortAt"]))
 
     results, fixtures = select_balanced_games(results, fixtures)
-    items = results + fixtures
+    items = live_games(fixtures) + results + non_live_games(fixtures)
 
-    for item in items:
+    for item in results + fixtures + items:
         item.pop("sortAt", None)
 
     return {
@@ -612,12 +634,12 @@ def normalize_api_sports_game(game, current, start, end):
     if status in FINISHED_STATUSES:
         if home_score is None or away_score is None:
             return None
-        return match_payload("result", match_time, status, "", False, home, away, home_score, away_score)
+        return match_payload("result", match_time, status, "", False, home, away, home_score, away_score, api_sports_stage_label(game))
 
     if status in SCHEDULED_STATUSES or live:
         if not live and match_time < current - timedelta(hours=4):
             return None
-        return match_payload("fixture", match_time, status or "NS", status if live else "", live, home, away, home_score, away_score)
+        return match_payload("fixture", match_time, status or "NS", status if live else "", live, home, away, home_score, away_score, api_sports_stage_label(game))
 
     return None
 
@@ -633,6 +655,23 @@ def api_sports_team_score(scores, side):
     if isinstance(score, dict):
         return normalize_number(score.get("total") if score.get("total") is not None else score.get("points"))
     return normalize_number(score)
+
+
+def api_sports_stage_label(game):
+    league = game.get("league") if isinstance(game.get("league"), dict) else {}
+    for source in (game, league):
+        for key in ("stage", "week", "round", "group"):
+            label = clean_label(source.get(key))
+            if label:
+                return label
+    return ""
+
+
+def clean_label(value):
+    text = str(value or "").replace("_", " ").strip()
+    if not text:
+        return ""
+    return " ".join(part.capitalize() for part in text.split())[:40]
 
 
 def normalize_status(value):

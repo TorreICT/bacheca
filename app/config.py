@@ -46,6 +46,9 @@ class Settings:
     mycollege_turno_singolo = get_bool("MYCOLLEGE_TURNO_SINGOLO", get_bool("TURNO_SINGOLO", False))
 
     pizza_index_url = os.getenv("PIZZA_INDEX_URL", "https://www.pizzint.watch/api/dashboard-data")
+    weather_forecast_url = os.getenv("BACHECA_WEATHER_FORECAST_URL", "https://api.open-meteo.com/v1/forecast")
+    weather_cache_path = resolve_path("BACHECA_WEATHER_CACHE_PATH", ".cache/weather-cache.json")
+    weather_cache_ttl_ms = get_int("BACHECA_WEATHER_CACHE_TTL_MS", 600000)
 
     google_client_email = os.getenv("GOOGLE_CLIENT_EMAIL", "")
     google_private_key = os.getenv("GOOGLE_PRIVATE_KEY", "")
@@ -84,7 +87,7 @@ class Settings:
 
     basketball_provider = os.getenv("BACHECA_BASKETBALL_PROVIDER", "thesportsdb")
     basketball_api_token = os.getenv("BACHECA_BASKETBALL_API_TOKEN", "")
-    basketball_base_url = os.getenv("BACHECA_BASKETBALL_BASE_URL", "")
+    basketball_base_url = os.getenv("BACHECA_BASKETBALL_BASE_URL", "https://www.thesportsdb.com/api/v1/json")
     basketball_cache_path = resolve_path("BACHECA_BASKETBALL_CACHE_PATH", ".cache/basketball-cache.json")
     basketball_badge_cache_dir = resolve_path("BACHECA_BASKETBALL_BADGE_CACHE_DIR", ".cache/basketball-badges")
     basketball_cache_ttl_ms = get_int("BACHECA_BASKETBALL_CACHE_TTL_MS", 1800000)
