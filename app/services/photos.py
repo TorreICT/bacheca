@@ -16,6 +16,17 @@ _stop_event = threading.Event()
 _worker = None
 _db_lock = threading.Lock()
 
+PHOTO_COLUMNS = {
+    "id",
+    "path",
+    "year",
+    "size",
+    "mtime",
+    "thumb_path",
+    "status",
+    "updated_at",
+}
+
 
 def _now():
     return int(time.time())
@@ -28,10 +39,25 @@ def _connect():
     return connection
 
 
+def _photo_columns(connection):
+    table = connection.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='photos'"
+    ).fetchone()
+    if not table:
+        return set()
+    rows = connection.execute("PRAGMA table_info(photos)").fetchall()
+    return {row["name"] for row in rows}
+
+
 def init_db():
     with _db_lock:
         connection = _connect()
         try:
+            columns = _photo_columns(connection)
+            if columns and not PHOTO_COLUMNS.issubset(columns):
+                connection.execute("DROP TABLE photos")
+                connection.commit()
+
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS photos (
