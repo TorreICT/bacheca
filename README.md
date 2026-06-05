@@ -286,15 +286,20 @@ Important photo settings:
 BACHECA_IMMICH_URL=http://immich.local:2283/api
 BACHECA_IMMICH_API_KEY=your-immich-api-key
 BACHECA_IMMICH_TIMEOUT_MS=10000
+BACHECA_IMMICH_PERSON_ALIASES=
 BACHECA_PHOTO_CACHE_DIR=.cache/photo-thumbs
 BACHECA_PHOTO_DB_PATH=.cache/photos.sqlite
-BACHECA_PHOTO_THUMBNAIL_WIDTH=900
-BACHECA_PHOTO_THUMBNAIL_HEIGHT=520
-BACHECA_PHOTO_THUMBNAIL_QUALITY=82
+BACHECA_PHOTO_THUMBNAIL_WIDTH=1920
+BACHECA_PHOTO_THUMBNAIL_HEIGHT=1080
+BACHECA_PHOTO_THUMBNAIL_QUALITY=92
 BACHECA_PHOTO_SCAN_INTERVAL_MS=900000
 BACHECA_PHOTO_YEARS_BACK=1
 BACHECA_PHOTO_PRELOAD_BATCH=40
 ```
+
+`BACHECA_IMMICH_PERSON_ALIASES` is optional. Use it when a calendar birthday
+name and Immich person name differ, for example:
+`Nicolas Arroyo=Nicolas;Matteo Laveder=Matteo`.
 
 If `/api/random-photo` returns `{ "available": false }`, the preloader may still
 be generating thumbnails. Check service logs and `.cache/`.

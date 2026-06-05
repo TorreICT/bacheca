@@ -43,6 +43,8 @@ def patched_photo_settings(temp_dir, transport):
     ), patch.object(
         photos.settings, "photo_preload_batch", 4
     ), patch.object(
+        photos.settings, "immich_person_aliases", ""
+    ), patch.object(
         photos.httpx, "Client", side_effect=client_factory
     ):
         yield
@@ -70,6 +72,36 @@ class ImmichPhotoParsingTests(unittest.TestCase):
         matches = photos.matching_people(people, ["roberto", "Rob"])
 
         self.assertEqual([person["id"] for person in matches], ["roberto"])
+
+    def test_matching_people_allows_unique_boundary_name_fallback(self):
+        people = [
+            {"id": "nicolas", "name": "Nicolas"},
+            {"id": "matteo", "name": "Matteo"},
+        ]
+
+        with patch.object(photos.settings, "immich_person_aliases", ""):
+            matches = photos.matching_people(people, ["Nicolas Arroyo", "Matteo Laveder"])
+
+        self.assertEqual([person["id"] for person in matches], ["nicolas", "matteo"])
+
+    def test_matching_people_skips_ambiguous_fuzzy_matches(self):
+        people = [
+            {"id": "matteo-a", "name": "Matteo A"},
+            {"id": "matteo-b", "name": "Matteo B"},
+        ]
+
+        with patch.object(photos.settings, "immich_person_aliases", ""):
+            matches = photos.matching_people(people, ["Matteo"])
+
+        self.assertEqual(matches, [])
+
+    def test_matching_people_supports_configured_aliases(self):
+        people = [{"id": "nico", "name": "Nico"}]
+
+        with patch.object(photos.settings, "immich_person_aliases", "Nicolas Arroyo=Nico"):
+            matches = photos.matching_people(people, ["Nicolas Arroyo"])
+
+        self.assertEqual([person["id"] for person in matches], ["nico"])
 
 
 class ImmichPhotoPayloadTests(unittest.TestCase):

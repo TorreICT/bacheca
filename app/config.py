@@ -60,12 +60,13 @@ class Settings:
     immich_url = os.getenv("BACHECA_IMMICH_URL", "")
     immich_api_key = os.getenv("BACHECA_IMMICH_API_KEY", "")
     immich_timeout = get_int("BACHECA_IMMICH_TIMEOUT_MS", 10000) / 1000.0
+    immich_person_aliases = os.getenv("BACHECA_IMMICH_PERSON_ALIASES", "")
 
     photo_cache_dir = resolve_path("BACHECA_PHOTO_CACHE_DIR", ".cache/photo-thumbs")
     photo_db_path = resolve_path("BACHECA_PHOTO_DB_PATH", ".cache/photos.sqlite")
-    photo_thumbnail_width = get_int("BACHECA_PHOTO_THUMBNAIL_WIDTH", 900)
-    photo_thumbnail_height = get_int("BACHECA_PHOTO_THUMBNAIL_HEIGHT", 520)
-    photo_thumbnail_quality = get_int("BACHECA_PHOTO_THUMBNAIL_QUALITY", 82)
+    photo_thumbnail_width = get_int("BACHECA_PHOTO_THUMBNAIL_WIDTH", 1920)
+    photo_thumbnail_height = get_int("BACHECA_PHOTO_THUMBNAIL_HEIGHT", 1080)
+    photo_thumbnail_quality = get_int("BACHECA_PHOTO_THUMBNAIL_QUALITY", 92)
     photo_scan_interval_ms = get_int("BACHECA_PHOTO_SCAN_INTERVAL_MS", 900000)
     photo_years_back = get_int("BACHECA_PHOTO_YEARS_BACK", 1)
     photo_preload_batch = get_int("BACHECA_PHOTO_PRELOAD_BATCH", 40)

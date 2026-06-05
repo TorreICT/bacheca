@@ -1,4 +1,5 @@
 import hashlib
+import json
 import random
 import sqlite3
 import threading
@@ -210,8 +211,62 @@ def _clean_birthday_names(names):
     return cleaned
 
 
+def _immich_person_aliases():
+    text = str(settings.immich_person_aliases or "").strip()
+    aliases = {}
+
+    if not text:
+        return aliases
+
+    try:
+        value = json.loads(text)
+    except (TypeError, ValueError):
+        value = None
+
+    if isinstance(value, dict):
+        for source, target in value.items():
+            source_key = _normalize_name(source)
+            target_text = str(target or "").strip()
+            if source_key and target_text:
+                aliases[source_key] = target_text
+        return aliases
+
+    for part in text.replace("\n", ";").replace("|", ";").split(";"):
+        if "=" not in part:
+            continue
+        source, target = part.split("=", 1)
+        source_key = _normalize_name(source)
+        target_text = target.strip()
+        if source_key and target_text:
+            aliases[source_key] = target_text
+    return aliases
+
+
+def _boundary_contains(left, right):
+    left = _normalize_name(left)
+    right = _normalize_name(right)
+    if not left or not right:
+        return False
+    return (
+        left == right
+        or left.startswith(right + " ")
+        or left.endswith(" " + right)
+        or right.startswith(left + " ")
+        or right.endswith(" " + left)
+    )
+
+
+def _unique_fuzzy_person(people, target_name):
+    matches = []
+    for person in people:
+        if _boundary_contains(person.get("name"), target_name):
+            matches.append(person)
+    return matches[0] if len(matches) == 1 else None
+
+
 def matching_people(people, birthday_names):
     by_name = {}
+    aliases = _immich_person_aliases()
     for person in people:
         key = _normalize_name(person.get("name"))
         if key and key not in by_name:
@@ -219,7 +274,20 @@ def matching_people(people, birthday_names):
 
     matches = []
     for name in _clean_birthday_names(birthday_names):
-        person = by_name.get(_normalize_name(name))
+        candidate_names = [aliases.get(_normalize_name(name)), name]
+        person = None
+        for candidate_name in candidate_names:
+            if not candidate_name:
+                continue
+            person = by_name.get(_normalize_name(candidate_name))
+            if person:
+                break
+        if not person:
+            for candidate_name in candidate_names:
+                if candidate_name:
+                    person = _unique_fuzzy_person(people, candidate_name)
+                    if person:
+                        break
         if person:
             matches.append(person)
     return matches
