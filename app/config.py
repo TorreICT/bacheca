@@ -47,6 +47,7 @@ class Settings:
 
     pizza_index_url = os.getenv("PIZZA_INDEX_URL", "https://www.pizzint.watch/api/dashboard-data")
     weather_forecast_url = os.getenv("BACHECA_WEATHER_FORECAST_URL", "https://api.open-meteo.com/v1/forecast")
+    weather_reverse_geocode_url = os.getenv("BACHECA_WEATHER_REVERSE_GEOCODE_URL", "https://nominatim.openstreetmap.org/reverse")
     weather_cache_path = resolve_path("BACHECA_WEATHER_CACHE_PATH", ".cache/weather-cache.json")
     weather_cache_ttl_ms = get_int("BACHECA_WEATHER_CACHE_TTL_MS", 600000)
 
@@ -95,6 +96,11 @@ class Settings:
     basketball_lookahead_days = get_int("BACHECA_BASKETBALL_LOOKAHEAD_DAYS", 30)
     basketball_max_items = get_int("BACHECA_BASKETBALL_MAX_ITEMS", 4)
     basketball_default_season = os.getenv("BACHECA_BASKETBALL_DEFAULT_SEASON", "")
+
+    market_base_url = os.getenv("BACHECA_MARKET_BASE_URL", "https://stooq.com/q/l/")
+    market_cache_path = resolve_path("BACHECA_MARKET_CACHE_PATH", ".cache/market-cache.json")
+    market_cache_ttl_ms = get_int("BACHECA_MARKET_CACHE_TTL_MS", 300000)
+    market_max_items = get_int("BACHECA_MARKET_MAX_ITEMS", 4)
 
 
 settings = Settings()

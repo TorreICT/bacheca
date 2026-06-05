@@ -95,6 +95,10 @@
             list.push(buildBasketballSlide(data.basketball));
         }
 
+        if (data.markets && data.markets.enabled) {
+            list.push(buildMarketSlide(data.markets));
+        }
+
         return list;
     }
 
@@ -143,6 +147,16 @@
         };
     }
 
+    function buildMarketSlide(markets) {
+        return {
+            type: "markets",
+            title: "Mercati",
+            markets: markets || {},
+            items: arrayOrEmpty(markets && markets.items),
+            text: markets && markets.available ? "Nessun indice disponibile" : markets && markets.message ? markets.message : "Mercati non disponibili"
+        };
+    }
+
     function renderActiveSlide() {
         var slide;
 
@@ -170,6 +184,8 @@
             currentContent.appendChild(createSportSlide(slide));
         } else if (slide.type === "basketball") {
             currentContent.appendChild(createSportSlide(slide));
+        } else if (slide.type === "markets") {
+            currentContent.appendChild(createMarketSlide(slide));
         } else {
             currentContent.appendChild(createMessageSlide("", slide.text || "Bacheca aggiornata"));
         }
@@ -228,6 +244,9 @@
         }
         if (slide.type === "basketball") {
             return "basketball";
+        }
+        if (slide.type === "markets") {
+            return "markets";
         }
         return slide.type || "";
     }
@@ -346,6 +365,51 @@
         root.appendChild(abbr);
         root.title = data.name || data.shortName || data.abbr || "";
         return root;
+    }
+
+    function createMarketSlide(slide) {
+        var item = dom.create("div", "bar-widget-slide bar-widget-market-slide");
+        var header = dom.create("div", "bar-widget-market-header");
+        var list = dom.create("div", "bar-widget-market-list");
+        var items = arrayOrEmpty(slide.items);
+        var markets = slide.markets || {};
+        var i;
+
+        header.appendChild(dom.create("span", "bar-widget-label", slide.title || "Mercati"));
+        if (markets.partial) {
+            header.appendChild(dom.create("strong", "bar-widget-market-title", "parziale"));
+        }
+        item.appendChild(header);
+
+        if (!items.length) {
+            item.appendChild(dom.create("div", "bar-widget-market-message", slide.text || "Mercati non disponibili"));
+            return item;
+        }
+
+        for (i = 0; i < items.length; i++) {
+            list.appendChild(createMarketCard(items[i]));
+        }
+        item.appendChild(list);
+        return item;
+    }
+
+    function createMarketCard(market) {
+        var data = market || {};
+        var item = dom.create("div", "bar-widget-market-card bar-widget-market-" + marketDirection(data));
+        var top = dom.create("div", "bar-widget-market-card-top");
+        var label = dom.create("strong", "bar-widget-market-name", data.label || data.symbol || "Indice");
+        var symbol = dom.create("span", "bar-widget-market-symbol", data.symbol || "");
+        var change = dom.create("strong", "bar-widget-market-change", formatMarketChange(data));
+        var value = dom.create("span", "bar-widget-market-value", "Valore " + formatMarketValue(data.value));
+
+        top.appendChild(label);
+        if (data.symbol) {
+            top.appendChild(symbol);
+        }
+        item.appendChild(top);
+        item.appendChild(change);
+        item.appendChild(value);
+        return item;
     }
 
     function sportDateTime(match) {
@@ -529,6 +593,44 @@
             return "---";
         }
         return text.substring(0, 3).toUpperCase();
+    }
+
+    function marketDirection(data) {
+        var direction = data && data.direction ? String(data.direction) : "";
+        if (direction === "up" || direction === "down") {
+            return direction;
+        }
+        return "flat";
+    }
+
+    function formatMarketValue(value) {
+        var number = parseFloat(value);
+        var decimals;
+        if (isNaN(number)) {
+            return "--";
+        }
+        decimals = Math.abs(number) >= 1000 ? 0 : 2;
+        return formatDecimal(number, decimals);
+    }
+
+    function formatMarketChange(data) {
+        var change = data ? parseFloat(data.change) : NaN;
+        var percent = data ? parseFloat(data.changePercent) : NaN;
+        var sign;
+        if (isNaN(change) || isNaN(percent)) {
+            return "--";
+        }
+        sign = change > 0 ? "+" : "";
+        return sign + formatDecimal(percent, 2) + "% (" + sign + formatDecimal(change, 2) + ")";
+    }
+
+    function formatDecimal(value, decimals) {
+        var parts = Number(value).toFixed(decimals).split(".");
+        var integer = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        if (parts.length > 1) {
+            return integer + "," + parts[1];
+        }
+        return integer;
     }
 
     function arrayOrEmpty(value) {

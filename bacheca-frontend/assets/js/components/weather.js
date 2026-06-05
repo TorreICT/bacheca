@@ -43,6 +43,7 @@
         var text = dom.create("div", "weather-hero-text");
         var temp = dom.create("div", "weather-temp", formatTemperature(current.temperature));
         var condition = dom.create("div", "weather-condition", current.label);
+        var location = createLocation(current.location);
         var details = dom.create("div", "weather-details");
 
         text.appendChild(temp);
@@ -50,6 +51,9 @@
         hero.appendChild(icon);
         hero.appendChild(text);
         main.appendChild(hero);
+        if (location) {
+            main.appendChild(location);
+        }
 
         details.appendChild(detail("Percepita", formatTemperature(current.apparentTemperature)));
         details.appendChild(detail("Umidit\u00e0", formatPercent(current.humidity)));
@@ -106,6 +110,23 @@
         image.src = config.weatherIconBasePath + key + ".svg";
         image.alt = label || "";
         return image;
+    }
+
+    function createLocation(value) {
+        var text = String(value || "").replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
+        var root;
+        var icon;
+
+        if (!text) {
+            return null;
+        }
+
+        root = dom.create("div", "weather-location");
+        icon = dom.create("span", "weather-location-icon");
+        icon.setAttribute("aria-hidden", "true");
+        root.appendChild(icon);
+        root.appendChild(dom.create("span", "weather-location-text", text));
+        return root;
     }
 
     function detail(label, value) {

@@ -9,7 +9,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
 from app.config import settings
-from app.services import bar_widget, basketball, soccer
+from app.services import bar_widget, basketball, markets, soccer
 
 
 FLOW_KEY = "bar_widget_flow"
@@ -147,9 +147,10 @@ def main_keyboard():
             ],
             [
                 InlineKeyboardButton("🏀 Basket", callback_data="basketball_menu"),
-                InlineKeyboardButton("📊 Stato", callback_data="status"),
+                InlineKeyboardButton("📈 Mercati", callback_data="markets_menu"),
             ],
             [
+                InlineKeyboardButton("📊 Stato", callback_data="status"),
                 InlineKeyboardButton("❓ Aiuto", callback_data="help"),
             ],
         ]
@@ -231,6 +232,49 @@ def basketball_keyboard():
             [InlineKeyboardButton("⬅️ Indietro", callback_data="panel")],
         ]
     )
+
+
+def markets_keyboard():
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("✅ Attiva", callback_data="markets_on"),
+                InlineKeyboardButton("⛔ Disattiva", callback_data="markets_off"),
+            ],
+            [InlineKeyboardButton("📊 Scegli indici", callback_data="markets_symbols_menu")],
+            [InlineKeyboardButton("➕ Aggiungi simbolo", callback_data="markets_symbol_add")],
+            [InlineKeyboardButton("⬅️ Indietro", callback_data="panel")],
+        ]
+    )
+
+
+def market_symbols_keyboard():
+    rows = []
+    row = []
+    state = bar_widget.load_state()
+    selected = {}
+    common = {}
+    for item in (state.get("markets") or {}).get("symbols") or []:
+        selected[item.get("symbol")] = True
+    for choice in markets.COMMON_SYMBOLS:
+        common[choice["symbol"]] = True
+        row.append(InlineKeyboardButton(market_button_label(choice, selected.get(choice["symbol"])), callback_data="market_toggle:" + choice["symbol"]))
+        if len(row) == 2:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    for item in (state.get("markets") or {}).get("symbols") or []:
+        if item.get("symbol") and not common.get(item.get("symbol")):
+            rows.append([InlineKeyboardButton(market_button_label(item, True), callback_data="market_toggle:" + item["symbol"])])
+    rows.append([InlineKeyboardButton("➕ Aggiungi simbolo", callback_data="markets_symbol_add")])
+    rows.append([InlineKeyboardButton("⬅️ Indietro", callback_data="markets_menu")])
+    return InlineKeyboardMarkup(rows)
+
+
+def market_button_label(choice, selected):
+    prefix = "✅ " if selected else "⬜ "
+    return prefix + str(choice.get("label") or choice.get("symbol") or "")
 
 
 async def soccer_competition_keyboard():
@@ -376,6 +420,7 @@ def status_text():
     state = bar_widget.load_state()
     soccer_state = state.get("soccer") or {}
     basketball_state = state.get("basketball") or {}
+    markets_state = state.get("markets") or {}
     countdown = state.get("countdown")
     announcements = bar_widget.announcement_records()
     active_count = len([item for item in announcements if item.get("active")])
@@ -390,9 +435,17 @@ def status_text():
         "⏳ Countdown: " + (countdown.get("to") if countdown else "nessuno"),
         "⚽ Calcio: " + ("attivo" if soccer_state.get("enabled") else "spento") + " " + str(soccer_state.get("competition") or "SA"),
         "🏀 Basket: " + ("attivo" if basketball_state.get("enabled") else "spento") + " " + str(basketball_state.get("competition") or "-") + " stagione " + basketball_season,
+        "📈 Mercati: " + ("attivi" if markets_state.get("enabled") else "spenti") + " " + market_symbols_text(markets_state),
         "👥 Admin: " + str(len(admins)) + " admin / " + str(len(superadmins)) + " superadmin",
     ]
     return "\n".join(parts)
+
+
+def market_symbols_text(markets_state):
+    symbols = markets_state.get("symbols") or []
+    if not symbols:
+        return "-"
+    return ", ".join([item.get("symbol") or "" for item in symbols if item.get("symbol")]) or "-"
 
 
 def help_text(include_superadmin=False):
@@ -410,6 +463,9 @@ def help_text(include_superadmin=False):
         "/soccer_on e /soccer_off - attiva/disattiva il calcio",
         "/basketball 12 2025-2026 - sceglie lega basket e stagione",
         "/basketball_on e /basketball_off - attiva/disattiva il basket",
+        "/markets - gestisce gli indici di mercato",
+        "/markets ^SPX | S&P 500 - aggiunge o aggiorna un indice",
+        "/markets_on e /markets_off - attiva/disattiva i mercati",
         "/cancel - interrompe una procedura guidata",
     ]
     if include_superadmin:
@@ -429,7 +485,7 @@ def start_text(update):
     return "\n".join(
         [
             "👋 Benvenuto nel controller della barra Bacheca Torrescalla.",
-            "Da qui puoi gestire avvisi, countdown, colore, visibilita, calcio e basket.",
+            "Da qui puoi gestire avvisi, countdown, colore, visibilita, calcio, basket e mercati.",
             "ID di questa chat: " + chat_id_text(update),
             "Ruolo: " + role_text(update),
             "",
@@ -609,6 +665,27 @@ async def callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "basketball_season_set":
         start_flow(context, "basketball_season", "value", {})
         await query.edit_message_text("📅 Scrivi la stagione basket, per esempio 2025-2026. Usa /cancel per fermarti.")
+    elif data == "markets_menu":
+        await query.edit_message_text("📈 Gestione mercati.", reply_markup=markets_keyboard())
+    elif data == "markets_on":
+        bar_widget.set_markets_enabled(True)
+        await query.edit_message_text("📈 Mercati attivati.", reply_markup=main_keyboard())
+    elif data == "markets_off":
+        bar_widget.set_markets_enabled(False)
+        await query.edit_message_text("⛔ Mercati disattivati.", reply_markup=main_keyboard())
+    elif data == "markets_symbols_menu":
+        await query.edit_message_text("📊 Scegli gli indici da mostrare. Massimo " + str(settings.market_max_items) + ".", reply_markup=market_symbols_keyboard())
+    elif data.startswith("market_toggle:"):
+        symbol = data.split(":", 1)[1]
+        try:
+            selected = bar_widget.toggle_market_symbol(symbol, markets.common_label(symbol))
+        except ValueError as error:
+            await query.edit_message_text(str(error), reply_markup=market_symbols_keyboard())
+            return
+        await query.edit_message_text(("✅ Indice selezionato: " if selected else "🗑️ Indice rimosso: ") + markets.common_label(symbol), reply_markup=market_symbols_keyboard())
+    elif data == "markets_symbol_add":
+        start_flow(context, "market_symbol", "value", {})
+        await query.edit_message_text("➕ Scrivi il simbolo Stooq, oppure simbolo | etichetta. Esempio: ^SPX | S&P 500. Usa /cancel per fermarti.")
 
 
 def start_flow(context, name, step, data):
@@ -640,6 +717,8 @@ async def flow_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await handle_color_flow(update, context, flow)
         elif flow["name"] == "basketball_season":
             await handle_basketball_season_flow(update, context, flow)
+        elif flow["name"] == "market_symbol":
+            await handle_market_symbol_flow(update, context, flow)
     except Exception as error:
         await update.message.reply_text("Non ha funzionato: " + str(error) + "\nUsa /cancel per fermarti oppure invia un altro valore.")
 
@@ -730,6 +809,17 @@ async def handle_basketball_season_flow(update, context, flow):
     bar_widget.set_basketball_season(text)
     context.user_data.pop(FLOW_KEY, None)
     await update.message.reply_text("📅 Stagione basket impostata: " + text + ".", reply_markup=basketball_keyboard())
+
+
+async def handle_market_symbol_flow(update, context, flow):
+    entry = parse_market_symbol_text(clean_message(update))
+    bar_widget.add_market_symbol(entry["symbol"], entry["label"])
+    context.user_data.pop(FLOW_KEY, None)
+    await update.message.reply_text("➕ Indice aggiunto: " + entry["label"] + " (" + entry["symbol"] + ").", reply_markup=markets_keyboard())
+
+
+def parse_market_symbol_text(text):
+    return markets.parse_custom_symbol(text)
 
 
 def clean_message(update):
@@ -956,6 +1046,39 @@ async def basketball_off_command(update: Update, context: ContextTypes.DEFAULT_T
     await update.message.reply_text("⛔ Basket disattivato.", reply_markup=main_keyboard())
 
 
+async def markets_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_authorized(update):
+        await deny(update)
+        return
+    raw = " ".join(context.args or []).strip()
+    if not raw:
+        await update.message.reply_text("📈 Mercati. Usa i pulsanti o invia /markets ^SPX | S&P 500", reply_markup=markets_keyboard())
+        return
+    try:
+        entry = parse_market_symbol_text(raw)
+        bar_widget.add_market_symbol(entry["symbol"], entry["label"])
+    except ValueError as error:
+        await update.message.reply_text(str(error), reply_markup=markets_keyboard())
+        return
+    await update.message.reply_text("➕ Indice aggiunto: " + entry["label"] + " (" + entry["symbol"] + ").", reply_markup=markets_keyboard())
+
+
+async def markets_on_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_authorized(update):
+        await deny(update)
+        return
+    bar_widget.set_markets_enabled(True)
+    await update.message.reply_text("📈 Mercati attivati.", reply_markup=main_keyboard())
+
+
+async def markets_off_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_authorized(update):
+        await deny(update)
+        return
+    bar_widget.set_markets_enabled(False)
+    await update.message.reply_text("⛔ Mercati disattivati.", reply_markup=main_keyboard())
+
+
 def admin_list_text():
     superadmins = sorted(superadmin_chat_ids())
     admins = sorted(admin_chat_ids())
@@ -1054,6 +1177,9 @@ def build_application():
     app.add_handler(CommandHandler("basketball", basketball_command))
     app.add_handler(CommandHandler("basketball_on", basketball_on_command))
     app.add_handler(CommandHandler("basketball_off", basketball_off_command))
+    app.add_handler(CommandHandler("markets", markets_command))
+    app.add_handler(CommandHandler("markets_on", markets_on_command))
+    app.add_handler(CommandHandler("markets_off", markets_off_command))
     app.add_handler(CommandHandler("admins", admins_command))
     app.add_handler(CommandHandler("add_admin", add_admin_command))
     app.add_handler(CommandHandler("remove_admin", remove_admin_command))

@@ -8,6 +8,7 @@ from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from app.config import settings
+from app.services import markets
 
 
 DEFAULT_COLOR = "#1565C0"
@@ -102,6 +103,10 @@ def default_state():
             "competition": "",
             "season": "",
         },
+        "markets": {
+            "enabled": False,
+            "symbols": markets.clone_symbols(markets.DEFAULT_SYMBOLS),
+        },
         "updatedAt": stamp,
     }
 
@@ -177,6 +182,11 @@ def normalize_state(raw):
         state["basketball"] = normalize_basketball(raw.get("basketball"))
     except Exception:
         state["basketball"] = normalize_basketball(None)
+
+    try:
+        state["markets"] = normalize_markets(raw.get("markets"))
+    except Exception:
+        state["markets"] = normalize_markets(None)
 
     updated_at = raw.get("updatedAt")
     try:
@@ -299,6 +309,18 @@ def normalize_basketball(item):
     }
 
 
+def normalize_markets(item):
+    source = item if isinstance(item, dict) else {}
+    if "symbols" in source:
+        symbols = markets.normalize_symbol_list(source.get("symbols"), settings.market_max_items, default_if_empty=False)
+    else:
+        symbols = markets.clone_symbols(markets.DEFAULT_SYMBOLS[: settings.market_max_items])
+    return {
+        "enabled": bool(source.get("enabled")),
+        "symbols": symbols,
+    }
+
+
 def active_announcement(state, current=None):
     announcements = active_announcements(state, current)
     return announcements[0] if announcements else None
@@ -414,6 +436,7 @@ async def public_state():
         "countdown": active_countdown(state, current),
         "soccer": await public_soccer(state),
         "basketball": await public_basketball(state),
+        "markets": await public_markets(state),
         "updatedAt": state.get("updatedAt") or isoformat(current),
     }
     return response
@@ -470,6 +493,35 @@ async def public_basketball(state):
             "label": basketball_state.get("competition") or "Basket",
             "items": [],
             "message": str(error) or "Basketball unavailable",
+        }
+
+
+async def public_markets(state):
+    markets_state = state.get("markets") or {}
+    symbols = markets_state.get("symbols") or []
+    if not markets_state.get("enabled"):
+        return {
+            "enabled": False,
+            "available": False,
+            "symbols": symbols,
+            "items": [],
+            "message": "Markets disabled",
+        }
+    try:
+        payload = await markets.load_indexes(symbols)
+        payload["enabled"] = True
+        payload["symbols"] = symbols
+        return payload
+    except Exception as error:
+        return {
+            "enabled": True,
+            "available": False,
+            "symbols": symbols,
+            "items": [],
+            "message": str(error) or "Markets unavailable",
+            "partial": False,
+            "stale": False,
+            "updatedAt": isoformat(now()),
         }
 
 
@@ -658,5 +710,59 @@ def set_basketball_season(season):
 
     def mutate(state):
         state["basketball"]["season"] = normalized["season"]
+
+    return update_state(mutate)
+
+
+def set_markets_enabled(enabled):
+    def mutate(state):
+        state["markets"]["enabled"] = bool(enabled)
+        if enabled:
+            state["visible"] = True
+
+    return update_state(mutate)
+
+
+def toggle_market_symbol(symbol, label=None):
+    entry = markets.normalize_symbol_entry({"symbol": symbol, "label": label or ""})
+    selected = {"value": False}
+
+    def mutate(state):
+        items = markets.normalize_symbol_list(state["markets"].get("symbols"), settings.market_max_items, default_if_empty=False)
+        kept = [item for item in items if item["symbol"] != entry["symbol"]]
+        if len(kept) != len(items):
+            state["markets"]["symbols"] = kept
+            selected["value"] = False
+            return
+        if len(items) >= settings.market_max_items:
+            raise ValueError("Puoi selezionare al massimo " + str(settings.market_max_items) + " indici")
+        items.append(entry)
+        state["markets"]["symbols"] = items
+        state["markets"]["enabled"] = True
+        state["visible"] = True
+        selected["value"] = True
+
+    update_state(mutate)
+    return selected["value"]
+
+
+def add_market_symbol(symbol, label=None):
+    entry = markets.normalize_symbol_entry({"symbol": symbol, "label": label or ""})
+
+    def mutate(state):
+        items = markets.normalize_symbol_list(state["markets"].get("symbols"), settings.market_max_items, default_if_empty=False)
+        for index, item in enumerate(items):
+            if item["symbol"] == entry["symbol"]:
+                items[index] = entry
+                state["markets"]["symbols"] = items
+                state["markets"]["enabled"] = True
+                state["visible"] = True
+                return
+        if len(items) >= settings.market_max_items:
+            raise ValueError("Puoi selezionare al massimo " + str(settings.market_max_items) + " indici")
+        items.append(entry)
+        state["markets"]["symbols"] = items
+        state["markets"]["enabled"] = True
+        state["visible"] = True
 
     return update_state(mutate)

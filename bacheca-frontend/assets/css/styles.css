@@ -856,6 +856,7 @@ p {
     background: #202226;
     box-shadow: 0 7px 16px rgba(0, 0, 0, 0.18);
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
 }
@@ -888,6 +889,46 @@ p {
     font-weight: 700;
     white-space: normal;
     overflow-wrap: break-word;
+}
+
+.weather-location {
+    margin-top: 8px;
+    max-width: 190px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #cfd3d8;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.15;
+    text-align: center;
+}
+
+.weather-location-icon {
+    position: relative;
+    flex: 0 0 auto;
+    width: 11px;
+    height: 14px;
+    border: 2px solid #cfd3d8;
+    border-radius: 7px 7px 7px 0;
+    transform: rotate(-45deg);
+    margin-right: 6px;
+}
+
+.weather-location-icon::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: #cfd3d8;
+}
+
+.weather-location-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .weather-details {
@@ -1559,6 +1600,159 @@ p {
     text-align: center;
 }
 
+.bar-widget-market-slide {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
+}
+
+.bar-widget-market-slide > * + * {
+    margin-left: 0;
+    margin-top: 3px;
+}
+
+.bar-widget-market-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    min-width: 0;
+    width: 100%;
+    overflow: hidden;
+}
+
+.bar-widget-market-header > * + * {
+    margin-left: 7px;
+}
+
+.bar-widget-market-title {
+    min-width: 0;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.bar-widget-market-list {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.bar-widget-market-list > * + * {
+    margin-left: 8px;
+}
+
+.bar-widget-market-card {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 230px;
+    padding: 8px 10px;
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.08);
+    border-top: 3px solid rgba(255, 255, 255, 0.28);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.bar-widget-market-up {
+    border-top-color: #2e7d32;
+}
+
+.bar-widget-market-down {
+    border-top-color: #c62828;
+}
+
+.bar-widget-market-flat {
+    border-top-color: rgba(255, 255, 255, 0.42);
+}
+
+.bar-widget-market-card > * + * {
+    margin-top: 3px;
+}
+
+.bar-widget-market-card-top {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 18px;
+    width: 100%;
+    overflow: visible;
+    line-height: 1.25;
+}
+
+.bar-widget-market-card-top > * + * {
+    margin-left: 5px;
+}
+
+.bar-widget-market-name {
+    min-width: 0;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.25;
+    padding-bottom: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bar-widget-market-symbol {
+    flex: 0 0 auto;
+    color: rgba(255, 255, 255, 0.66);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.2;
+    padding-bottom: 1px;
+    white-space: nowrap;
+}
+
+.bar-widget-market-value {
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.15;
+    white-space: nowrap;
+}
+
+.bar-widget-market-change {
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 1.05;
+    white-space: nowrap;
+}
+
+.bar-widget-market-up .bar-widget-market-change {
+    color: #7bd88f;
+}
+
+.bar-widget-market-down .bar-widget-market-change {
+    color: #ff8a80;
+}
+
+.bar-widget-market-message {
+    color: #ffffff;
+    font-size: 29px;
+    font-weight: 700;
+    line-height: 1.18;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+}
+
 @media (max-width: 980px) {
     .hero-content {
         flex-wrap: wrap;
@@ -1660,6 +1854,7 @@ p {
     .bar-widget-announcement,
     .bar-widget-countdown,
     .bar-widget-soccer-slide,
+    .bar-widget-market-slide,
     .bar-widget-empty {
         width: 100%;
     }

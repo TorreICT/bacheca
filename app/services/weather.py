@@ -80,7 +80,13 @@ async def load_forecast(latitude, longitude, timezone, start_date, end_date, cur
     url = build_forecast_url(latitude, longitude, timezone, start_date, end_date, current, daily)
     cached = read_cache(url)
     if cached and cache_is_fresh(cached):
-        return cached_payload(cached)
+        payload = cached_payload(cached)
+        if payload and payload.get("location"):
+            return payload
+        if payload:
+            payload = with_location(payload, await load_location(latitude, longitude, cached))
+            write_cache(url, payload)
+            return payload
 
     try:
         payload = await fetch_forecast(url)
@@ -90,6 +96,7 @@ async def load_forecast(latitude, longitude, timezone, start_date, end_date, cur
             return fallback
         raise
 
+    payload = with_location(payload, await load_location(latitude, longitude, cached))
     write_cache(url, payload)
     return payload
 
@@ -105,6 +112,100 @@ async def fetch_forecast(url):
         )
         response.raise_for_status()
         return response.json()
+
+
+async def load_location(latitude, longitude, cached):
+    cached_location = None
+    if isinstance(cached, dict) and isinstance(cached.get("payload"), dict):
+        cached_location = cached["payload"].get("location")
+
+    try:
+        location = await fetch_location_name(latitude, longitude)
+    except httpx.HTTPError:
+        location = cached_location
+
+    return location or fallback_location_name(latitude, longitude)
+
+
+async def fetch_location_name(latitude, longitude):
+    params = urlencode(
+        {
+            "format": "jsonv2",
+            "lat": normalize_coordinate("latitude", latitude, -90, 90),
+            "lon": normalize_coordinate("longitude", longitude, -180, 180),
+            "zoom": "14",
+            "addressdetails": "1",
+            "accept-language": "it",
+        }
+    )
+    url = settings.weather_reverse_geocode_url + "?" + params
+    async with httpx.AsyncClient(timeout=settings.request_timeout) as client:
+        response = await client.get(
+            url,
+            headers={
+                "Accept": "application/json",
+                "User-Agent": "Torrescalla-Bacheca/2.0",
+            },
+        )
+        response.raise_for_status()
+        return location_name_from_geocode(response.json())
+
+
+def location_name_from_geocode(body):
+    address = body.get("address") if isinstance(body, dict) else None
+    if not isinstance(address, dict):
+        return ""
+
+    area = first_text(
+        address,
+        (
+            "neighbourhood",
+            "quarter",
+            "suburb",
+            "city_district",
+            "borough",
+            "municipality",
+        ),
+    )
+    city = first_text(address, ("city", "town", "village", "hamlet", "county"))
+    state = first_text(address, ("state", "region"))
+
+    parts = []
+    for value in (area, city, state):
+        cleaned = compact_text(value)
+        if cleaned and cleaned not in parts:
+            parts.append(cleaned)
+
+    return ", ".join(parts[:2])
+
+
+def first_text(source, keys):
+    for key in keys:
+        value = source.get(key)
+        if value:
+            return value
+    return ""
+
+
+def compact_text(value):
+    text = " ".join(str(value or "").split())
+    return text[:80]
+
+
+def fallback_location_name(latitude, longitude):
+    return "%s, %s" % (
+        normalize_coordinate("latitude", latitude, -90, 90),
+        normalize_coordinate("longitude", longitude, -180, 180),
+    )
+
+
+def with_location(payload, location):
+    if not isinstance(payload, dict):
+        return payload
+    copy = dict(payload)
+    if location:
+        copy["location"] = location
+    return copy
 
 
 def validate_dates(start_date, end_date):
