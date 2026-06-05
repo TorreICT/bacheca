@@ -376,9 +376,7 @@
         var i;
 
         header.appendChild(dom.create("span", "bar-widget-label", slide.title || "Mercati"));
-        if (markets.stale) {
-            header.appendChild(dom.create("strong", "bar-widget-market-title", "cache"));
-        } else if (markets.partial) {
+        if (markets.partial) {
             header.appendChild(dom.create("strong", "bar-widget-market-title", "parziale"));
         }
         item.appendChild(header);
