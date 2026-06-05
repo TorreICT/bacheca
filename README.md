@@ -270,25 +270,22 @@ available; otherwise the slide shows a short unavailable message.
 
 ## Photos
 
-Mount the FOTO share on the VM, usually at `/mnt/foto`, and make it readable by
-the systemd user.
+The backend reads image assets directly from Immich, stores thumbnail metadata
+in SQLite, and preloads small JPEG thumbnails with Pillow. The browser only
+receives thumbnail URLs; original photos are downloaded only by the backend
+while generating thumbnails.
 
-Example CIFS mount flow:
-
-```bash
-sudo apt install cifs-utils
-sudo mkdir -p /mnt/foto
-sudo mount -t cifs //SERVER_IP/FOTO /mnt/foto -o ro,guest,iocharset=utf8
-```
-
-The backend scans year folders under `BACHECA_PHOTO_ROOT`, stores metadata in
-SQLite, and preloads small JPEG thumbnails with Pillow. The browser only
-receives thumbnail URLs; original photos are never sent to the Raspberry.
+Birthday photos use Immich face/person data. When today's calendar has one or
+more `Compleanno di ...` events, the dashboard asks Immich for exact matching
+person names and picks birthday photos from any year. If no matching person or
+photo exists, the normal random Immich photo flow is used.
 
 Important photo settings:
 
 ```env
-BACHECA_PHOTO_ROOT=/mnt/foto
+BACHECA_IMMICH_URL=http://immich.local:2283/api
+BACHECA_IMMICH_API_KEY=your-immich-api-key
+BACHECA_IMMICH_TIMEOUT_MS=10000
 BACHECA_PHOTO_CACHE_DIR=.cache/photo-thumbs
 BACHECA_PHOTO_DB_PATH=.cache/photos.sqlite
 BACHECA_PHOTO_THUMBNAIL_WIDTH=900

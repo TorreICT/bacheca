@@ -10,9 +10,11 @@
     var latestStatsData = null;
     var latestMenuData = null;
     var latestMealErrors = [];
+    var latestBirthdayNames = [];
     var latestRandomPhotoAvailable = false;
     var photoFocusMode = false;
     var randomPhotoLoading = false;
+    var calendarLoading = false;
     var menuSlotMarker = null;
     var photoSlotMarker = null;
     var adaptiveDebugEnabled = false;
@@ -36,6 +38,7 @@
         if (activeDataDate && currentDate !== activeDataDate) {
             latestMenuData = null;
             latestMealErrors = [];
+            latestBirthdayNames = [];
         }
         activeDataDate = currentDate;
         refreshMeals();
@@ -43,7 +46,6 @@
         refreshWeather();
         refreshBarWidget();
         refreshPizzaIndex();
-        refreshRandomPhoto();
         Bacheca.components.clock.setLastUpdated();
     }
 
@@ -146,9 +148,14 @@
             menusUnavailable: bothMenusUnavailable(latestMenuData),
             photoAvailable: isRandomPhotoAvailable(),
             photoLoading: randomPhotoLoading,
+            calendarLoading: calendarLoading,
             errors: latestMealErrors.length
         });
         if (bothMenusUnavailable(latestMenuData) && !isRandomPhotoAvailable() && !randomPhotoLoading) {
+            if (calendarLoading) {
+                debugAdaptive("photo refresh waiting for calendar", {});
+                return;
+            }
             debugAdaptive("triggering photo refresh before swap", {});
             refreshRandomPhoto();
             return;
@@ -175,15 +182,20 @@
 
     function refreshCalendar() {
         var maxItems;
+        calendarLoading = true;
+        latestBirthdayNames = [];
         Bacheca.components.birthdays.render([]);
         Bacheca.components.events.setLoading();
         Bacheca.services.events.load(function (error, calendarData) {
             var birthdayNames = calendarData && calendarData.birthdayNames ? calendarData.birthdayNames : [];
             var events = calendarData && calendarData.events ? calendarData.events : [];
 
+            calendarLoading = false;
+            latestBirthdayNames = birthdayNames;
             Bacheca.components.birthdays.render(birthdayNames);
             maxItems = birthdayNames.length ? config.maxEventsWithBirthday : config.maxEvents;
             Bacheca.components.events.render(events, error, maxItems);
+            refreshRandomPhoto(birthdayNames);
         });
     }
 
@@ -212,17 +224,18 @@
         });
     }
 
-    function refreshRandomPhoto() {
+    function refreshRandomPhoto(birthdayNames) {
+        var names = birthdayNames || latestBirthdayNames || [];
         if (randomPhotoLoading) {
             debugAdaptive("photo refresh skipped, already loading", {});
             return;
         }
         randomPhotoLoading = true;
-        debugAdaptive("photo refresh start", {});
+        debugAdaptive("photo refresh start", { birthdayNames: names.length });
         if (!photoFocusMode) {
             Bacheca.components.randomPhoto.setLoading();
         }
-        Bacheca.services.randomPhoto.load(function (error, photo) {
+        Bacheca.services.randomPhoto.load(names, function (error, photo) {
             randomPhotoLoading = false;
             latestRandomPhotoAvailable = !error && !!(photo && photo.photos && photo.photos.length);
             debugAdaptive("photo loaded", {

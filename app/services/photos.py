@@ -1,12 +1,13 @@
 import hashlib
-import os
 import random
 import sqlite3
 import threading
 import time
 from datetime import datetime
+from io import BytesIO
 from pathlib import Path
 
+import httpx
 from PIL import Image, ImageOps
 
 from app.config import settings
@@ -15,6 +16,15 @@ from app.config import settings
 _stop_event = threading.Event()
 _worker = None
 _db_lock = threading.Lock()
+
+PHOTO_COLUMNS = {
+    "id",
+    "asset_id",
+    "file_name",
+    "thumb_path",
+    "status",
+    "updated_at",
+}
 
 
 def _now():
@@ -28,36 +38,48 @@ def _connect():
     return connection
 
 
+def _photo_columns(connection):
+    table = connection.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='photos'"
+    ).fetchone()
+    if not table:
+        return set()
+    rows = connection.execute("PRAGMA table_info(photos)").fetchall()
+    return {row["name"] for row in rows}
+
+
 def init_db():
     with _db_lock:
         connection = _connect()
         try:
+            columns = _photo_columns(connection)
+            if columns and not PHOTO_COLUMNS.issubset(columns):
+                connection.execute("DROP TABLE photos")
+                connection.commit()
+
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS photos (
                     id TEXT PRIMARY KEY,
-                    path TEXT NOT NULL UNIQUE,
-                    year INTEGER NOT NULL,
-                    size INTEGER NOT NULL,
-                    mtime REAL NOT NULL,
+                    asset_id TEXT NOT NULL UNIQUE,
+                    file_name TEXT NOT NULL,
                     thumb_path TEXT NOT NULL,
                     status TEXT NOT NULL,
                     updated_at INTEGER NOT NULL
                 )
                 """
             )
-            connection.execute("CREATE INDEX IF NOT EXISTS idx_photos_year_status ON photos(year, status)")
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_photos_status ON photos(status)")
             connection.commit()
         finally:
             connection.close()
 
 
-def _photo_id(path, size, mtime):
+def _photo_id(asset_id):
     text = "|".join(
         [
-            str(path),
-            str(size),
-            str(mtime),
+            "immich",
+            str(asset_id),
             str(settings.photo_thumbnail_width),
             str(settings.photo_thumbnail_height),
             str(settings.photo_thumbnail_quality),
@@ -81,110 +103,179 @@ def _years_for_date(date_text=None):
     return years
 
 
-def _year_folders(years):
-    if not settings.photo_root.exists():
-        return []
-    folders = []
-    prefixes = tuple(str(year) for year in years)
-    try:
-        entries = list(settings.photo_root.iterdir())
-    except OSError:
-        return []
-    for entry in entries:
-        if entry.name.startswith(prefixes) and entry.is_dir() and not entry.is_symlink():
-            folders.append(entry)
-    random.shuffle(folders)
-    return folders
+def _normal_search_payload_for_years(years):
+    start_year = min(years)
+    end_year = max(years)
+    return {
+        "type": "IMAGE",
+        "takenAfter": f"{start_year:04d}-01-01T00:00:00.000Z",
+        "takenBefore": f"{end_year:04d}-12-31T23:59:59.999Z",
+    }
 
 
-def _file_year(path):
-    name = path.name
-    if len(name) >= 4 and name[:4].isdigit():
-        return int(name[:4])
-    for parent in path.parents:
-        if parent == settings.photo_root:
-            break
-        if len(parent.name) >= 4 and parent.name[:4].isdigit():
-            return int(parent.name[:4])
-    return datetime.now().year
+def normal_search_payload(date_text=None):
+    return _normal_search_payload_for_years(_years_for_date(date_text))
 
 
-def _iter_photo_files(years):
-    folders = _year_folders(years)
-    for folder in folders:
-        for root, dirs, files in os.walk(str(folder), followlinks=False):
-            dirs[:] = [name for name in dirs if not Path(root, name).is_symlink()]
-            random.shuffle(files)
-            for file_name in files:
-                path = Path(root) / file_name
-                if path.suffix.lower() in settings.photo_extensions:
-                    yield path
+def birthday_search_payload(person_ids):
+    return {
+        "type": "IMAGE",
+        "personIds": list(person_ids),
+    }
 
 
-def _upsert_photo(connection, path):
-    try:
-        stat = path.stat()
-    except OSError:
-        return
-    photo_id = _photo_id(path, stat.st_size, stat.st_mtime)
+def _immich_base_url():
+    base = settings.immich_url.strip().rstrip("/")
+    if not base:
+        raise RuntimeError("Missing BACHECA_IMMICH_URL")
+    if not base.endswith("/api"):
+        base += "/api"
+    return base
+
+
+def _immich_url(path):
+    return _immich_base_url() + "/" + path.lstrip("/")
+
+
+def _immich_headers():
+    if not settings.immich_api_key:
+        raise RuntimeError("Missing BACHECA_IMMICH_API_KEY")
+    return {
+        "Accept": "application/json",
+        "x-api-key": settings.immich_api_key,
+    }
+
+
+def _immich_client():
+    return httpx.Client(timeout=settings.immich_timeout, headers=_immich_headers())
+
+
+def _search_size(limit):
+    return max(1, min(1000, max(limit * 50, settings.photo_preload_batch)))
+
+
+def _extract_assets(search_data):
+    assets = []
+
+    if isinstance(search_data, dict):
+        if isinstance(search_data.get("assets"), dict):
+            assets = search_data["assets"].get("items") or []
+        elif isinstance(search_data.get("items"), list):
+            assets = search_data["items"]
+        elif isinstance(search_data.get("assets"), list):
+            assets = search_data["assets"]
+    elif isinstance(search_data, list):
+        assets = search_data
+
+    return [asset for asset in assets if isinstance(asset, dict) and asset.get("id")]
+
+
+def search_assets(client, payload, limit):
+    body = dict(payload)
+    body.setdefault("type", "IMAGE")
+    body.setdefault("page", 1)
+    body.setdefault("size", _search_size(limit))
+
+    response = client.post(_immich_url("search/metadata"), json=body)
+    response.raise_for_status()
+    return _extract_assets(response.json())
+
+
+def _load_people(client):
+    response = client.get(_immich_url("people"))
+    response.raise_for_status()
+    data = response.json()
+    if isinstance(data, dict):
+        people = data.get("people") or []
+    elif isinstance(data, list):
+        people = data
+    else:
+        people = []
+    return [person for person in people if isinstance(person, dict) and person.get("id")]
+
+
+def _normalize_name(value):
+    return " ".join(str(value or "").strip().lower().split())
+
+
+def _clean_birthday_names(names):
+    cleaned = []
+    seen = set()
+    for name in names or []:
+        text = str(name or "").strip()
+        key = _normalize_name(text)
+        if text and key and key not in seen:
+            cleaned.append(text)
+            seen.add(key)
+    return cleaned
+
+
+def matching_people(people, birthday_names):
+    by_name = {}
+    for person in people:
+        key = _normalize_name(person.get("name"))
+        if key and key not in by_name:
+            by_name[key] = person
+
+    matches = []
+    for name in _clean_birthday_names(birthday_names):
+        person = by_name.get(_normalize_name(name))
+        if person:
+            matches.append(person)
+    return matches
+
+
+def _asset_file_name(asset):
+    name = asset.get("originalFileName") or asset.get("fileName")
+    if not name and asset.get("originalPath"):
+        name = str(asset["originalPath"]).replace("\\", "/").rstrip("/").split("/")[-1]
+    return str(name or asset.get("id") or "immich-photo.jpg")
+
+
+def _upsert_asset(asset):
+    asset_id = str(asset.get("id") or "")
+    if not asset_id:
+        return None
+
+    photo_id = _photo_id(asset_id)
     thumb_path = _thumbnail_path(photo_id)
     status = "ready" if thumb_path.exists() else "pending"
-    connection.execute(
-        """
-        INSERT INTO photos (id, path, year, size, mtime, thumb_path, status, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(path) DO UPDATE SET
-            id=excluded.id,
-            year=excluded.year,
-            size=excluded.size,
-            mtime=excluded.mtime,
-            thumb_path=excluded.thumb_path,
-            status=CASE
-                WHEN photos.size=excluded.size AND photos.mtime=excluded.mtime AND photos.status='ready' THEN photos.status
-                ELSE excluded.status
-            END,
-            updated_at=excluded.updated_at
-        """,
-        (photo_id, str(path), _file_year(path), stat.st_size, stat.st_mtime, str(thumb_path), status, _now()),
-    )
+    row = {
+        "id": photo_id,
+        "asset_id": asset_id,
+        "file_name": _asset_file_name(asset),
+        "thumb_path": str(thumb_path),
+        "status": status,
+    }
 
-
-def scan_archive(years=None):
-    init_db()
-    years = years or _years_for_date()
     with _db_lock:
         connection = _connect()
         try:
-            for path in _iter_photo_files(years):
-                _upsert_photo(connection, path)
+            connection.execute(
+                """
+                INSERT INTO photos (id, asset_id, file_name, thumb_path, status, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(asset_id) DO UPDATE SET
+                    id=excluded.id,
+                    file_name=excluded.file_name,
+                    thumb_path=excluded.thumb_path,
+                    status=excluded.status,
+                    updated_at=excluded.updated_at
+                """,
+                (
+                    row["id"],
+                    row["asset_id"],
+                    row["file_name"],
+                    row["thumb_path"],
+                    row["status"],
+                    _now(),
+                ),
+            )
             connection.commit()
         finally:
             connection.close()
 
-
-def _make_thumbnail(source, destination):
-    settings.photo_cache_dir.mkdir(parents=True, exist_ok=True)
-    with Image.open(source) as image:
-        image = ImageOps.exif_transpose(image)
-        image.thumbnail((settings.photo_thumbnail_width, settings.photo_thumbnail_height), Image.Resampling.LANCZOS)
-        if image.mode not in ("RGB", "L"):
-            image = image.convert("RGB")
-        elif image.mode == "L":
-            image = image.convert("RGB")
-        image.save(destination, "JPEG", quality=settings.photo_thumbnail_quality, optimize=True, progressive=False)
-
-
-def _next_pending(limit):
-    with _db_lock:
-        connection = _connect()
-        try:
-            rows = connection.execute(
-                "SELECT * FROM photos WHERE status IN ('pending', 'failed') ORDER BY updated_at ASC LIMIT ?",
-                (limit,),
-            ).fetchall()
-            return [dict(row) for row in rows]
-        finally:
-            connection.close()
+    return row
 
 
 def _set_status(photo_id, status):
@@ -200,23 +291,130 @@ def _set_status(photo_id, status):
             connection.close()
 
 
+def _make_thumbnail(source_bytes, destination):
+    settings.photo_cache_dir.mkdir(parents=True, exist_ok=True)
+    with Image.open(BytesIO(source_bytes)) as image:
+        image = ImageOps.exif_transpose(image)
+        image.thumbnail((settings.photo_thumbnail_width, settings.photo_thumbnail_height), Image.Resampling.LANCZOS)
+        if image.mode not in ("RGB", "L"):
+            image = image.convert("RGB")
+        elif image.mode == "L":
+            image = image.convert("RGB")
+        image.save(destination, "JPEG", quality=settings.photo_thumbnail_quality, optimize=True, progressive=False)
+
+
+def download_original(client, asset_id):
+    response = client.get(_immich_url(f"assets/{asset_id}/original"))
+    response.raise_for_status()
+    return response.content
+
+
+def _photo_response(row):
+    return {
+        "id": row["id"],
+        "imagePath": "/api/random-photo/image/" + row["id"],
+        "fileName": row["file_name"],
+    }
+
+
+def _prepare_asset(client, asset):
+    row = _upsert_asset(asset)
+    if not row:
+        return None
+
+    destination = Path(row["thumb_path"])
+    if destination.exists():
+        _set_status(row["id"], "ready")
+        return _photo_response(row)
+
+    try:
+        _make_thumbnail(download_original(client, row["asset_id"]), destination)
+        _set_status(row["id"], "ready")
+        return _photo_response(row)
+    except Exception:
+        _set_status(row["id"], "failed")
+        return None
+
+
+def _prepare_assets(client, assets, limit):
+    photos = []
+    for asset in assets:
+        photo = _prepare_asset(client, asset)
+        if photo:
+            photos.append(photo)
+        if len(photos) >= limit:
+            break
+    return photos
+
+
+def _select_assets(assets, limit):
+    selected = list(assets)
+    random.shuffle(selected)
+    return selected[:limit]
+
+
+def _normal_assets(client, date_text, limit):
+    assets = search_assets(client, normal_search_payload(date_text), limit)
+    return _select_assets(assets, limit)
+
+
+def _birthday_assets(client, birthday_names, limit):
+    people = matching_people(_load_people(client), birthday_names)
+    if not people:
+        return []
+
+    if len(people) == 1:
+        assets = search_assets(client, birthday_search_payload([people[0]["id"]]), limit)
+        return _select_assets(assets, limit)
+
+    selected = []
+    for person in people:
+        assets = search_assets(client, birthday_search_payload([person["id"]]), 1)
+        if assets:
+            selected.extend(_select_assets(assets, 1))
+        if len(selected) >= limit:
+            break
+    return selected
+
+
+def scan_archive(years=None):
+    init_db()
+    years = years or _years_for_date()
+    with _immich_client() as client:
+        assets = search_assets(client, _normal_search_payload_for_years(years), settings.photo_preload_batch)
+        random.shuffle(assets)
+        for asset in assets[: settings.photo_preload_batch]:
+            _upsert_asset(asset)
+        return len(assets)
+
+
+def _next_pending(limit):
+    with _db_lock:
+        connection = _connect()
+        try:
+            rows = connection.execute(
+                "SELECT * FROM photos WHERE status IN ('pending', 'failed') ORDER BY updated_at ASC LIMIT ?",
+                (limit,),
+            ).fetchall()
+            return [dict(row) for row in rows]
+        finally:
+            connection.close()
+
+
 def process_pending(limit=None):
     init_db()
     limit = limit or settings.photo_preload_batch
     processed = 0
-    for row in _next_pending(limit):
-        source = Path(row["path"])
-        destination = Path(row["thumb_path"])
-        if not source.exists():
-            _set_status(row["id"], "missing")
-            continue
-        try:
-            if not destination.exists():
-                _make_thumbnail(source, destination)
-            _set_status(row["id"], "ready")
-            processed += 1
-        except Exception:
-            _set_status(row["id"], "failed")
+    with _immich_client() as client:
+        for row in _next_pending(limit):
+            destination = Path(row["thumb_path"])
+            try:
+                if not destination.exists():
+                    _make_thumbnail(download_original(client, row["asset_id"]), destination)
+                _set_status(row["id"], "ready")
+                processed += 1
+            except Exception:
+                _set_status(row["id"], "failed")
     return processed
 
 
@@ -250,30 +448,20 @@ def stop_worker():
     _stop_event.set()
 
 
-def random_ready_photos(date_text=None, limit=2):
-    years = _years_for_date(date_text)
-    placeholders = ",".join(["?"] * len(years))
-    with _db_lock:
-        connection = _connect()
-        try:
-            rows = connection.execute(
-                "SELECT * FROM photos WHERE status='ready' AND year IN (" + placeholders + ") ORDER BY RANDOM() LIMIT ?",
-                tuple(years) + (limit,),
-            ).fetchall()
-            photos = []
-            for row in rows:
-                thumb_path = Path(row["thumb_path"])
-                if thumb_path.exists():
-                    photos.append(
-                        {
-                            "id": row["id"],
-                            "imagePath": "/api/random-photo/image/" + row["id"],
-                            "fileName": Path(row["path"]).name,
-                        }
-                    )
-            return photos
-        finally:
-            connection.close()
+def random_ready_photos(date_text=None, limit=2, birthday_names=None):
+    init_db()
+    names = _clean_birthday_names(birthday_names)
+
+    try:
+        with _immich_client() as client:
+            if names:
+                birthday_photos = _prepare_assets(client, _birthday_assets(client, names, limit), limit)
+                if birthday_photos:
+                    return birthday_photos
+
+            return _prepare_assets(client, _normal_assets(client, date_text, limit), limit)
+    except Exception:
+        return []
 
 
 def thumbnail_for_id(photo_id):

@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+from typing import List
 
 import httpx
 from fastapi import FastAPI, HTTPException, Query
@@ -131,10 +132,10 @@ async def api_weather(
 
 
 @app.get("/api/random-photo")
-def api_random_photo(data: str = Query(None)):
+def api_random_photo(data: str = Query(None), birthdayName: List[str] = Query(None)):
     if data and not DATE_RE.match(data):
         raise HTTPException(status_code=400, detail="Invalid data parameter. Expected YYYY-MM-DD.")
-    ready = photos.random_ready_photos(data, limit=2)
+    ready = photos.random_ready_photos(data, limit=2, birthday_names=birthdayName or [])
     if not ready:
         return {"available": False}
     return {

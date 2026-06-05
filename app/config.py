@@ -57,14 +57,12 @@ class Settings:
     google_calendar_id = os.getenv("GOOGLE_CALENDAR_ID", "eventi.torrescalla@fondazionerui.it")
     google_calendar_max_results = get_int("GOOGLE_CALENDAR_MAX_RESULTS", 50)
 
-    photo_root = resolve_path("BACHECA_PHOTO_ROOT", "/mnt/foto")
+    immich_url = os.getenv("BACHECA_IMMICH_URL", "")
+    immich_api_key = os.getenv("BACHECA_IMMICH_API_KEY", "")
+    immich_timeout = get_int("BACHECA_IMMICH_TIMEOUT_MS", 10000) / 1000.0
+
     photo_cache_dir = resolve_path("BACHECA_PHOTO_CACHE_DIR", ".cache/photo-thumbs")
     photo_db_path = resolve_path("BACHECA_PHOTO_DB_PATH", ".cache/photos.sqlite")
-    photo_extensions = tuple(
-        part.strip().lower() if part.strip().startswith(".") else "." + part.strip().lower()
-        for part in os.getenv("BACHECA_PHOTO_EXTENSIONS", ".jpg,.jpeg,.png,.gif,.webp").split(",")
-        if part.strip()
-    )
     photo_thumbnail_width = get_int("BACHECA_PHOTO_THUMBNAIL_WIDTH", 900)
     photo_thumbnail_height = get_int("BACHECA_PHOTO_THUMBNAIL_HEIGHT", 520)
     photo_thumbnail_quality = get_int("BACHECA_PHOTO_THUMBNAIL_QUALITY", 82)

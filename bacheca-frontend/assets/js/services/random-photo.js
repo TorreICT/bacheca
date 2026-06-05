@@ -6,12 +6,24 @@
     var http = Bacheca.utils.http;
     var dateUtils = Bacheca.utils.date;
 
-    function buildUrl(dateText) {
+    function buildUrl(dateText, birthdayNames) {
         var path = (config.api && config.api.randomPhoto) || "/api/random-photo";
         var dateValue = dateText || dateUtils.formatIsoDate(new Date());
         var refreshValue = String(new Date().getTime()) + String(Math.floor(Math.random() * 1000000));
+        var params = [
+            "data=" + encodeURIComponent(dateValue),
+            "refresh=" + encodeURIComponent(refreshValue)
+        ];
+        var i;
 
-        return path + "?data=" + encodeURIComponent(dateValue) + "&refresh=" + encodeURIComponent(refreshValue);
+        birthdayNames = birthdayNames || [];
+        for (i = 0; i < birthdayNames.length; i += 1) {
+            if (birthdayNames[i]) {
+                params.push("birthdayName=" + encodeURIComponent(birthdayNames[i]));
+            }
+        }
+
+        return path + "?" + params.join("&");
     }
 
     function normalize(response) {
@@ -57,9 +69,16 @@
         };
     }
 
-    function load(callback) {
+    function load(birthdayNames, callback) {
         var dateText = dateUtils.formatIsoDate(new Date());
-        var url = buildUrl(dateText);
+        var url;
+
+        if (typeof birthdayNames === "function") {
+            callback = birthdayNames;
+            birthdayNames = [];
+        }
+
+        url = buildUrl(dateText, birthdayNames);
 
         http.getJson(url, function (error, response) {
             if (error) {
