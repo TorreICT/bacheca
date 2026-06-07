@@ -45,6 +45,7 @@
         var condition = dom.create("div", "weather-condition", current.label);
         var location = createLocation(current.location);
         var details = dom.create("div", "weather-details");
+        var uv = createUvIndicator(current);
 
         text.appendChild(temp);
         text.appendChild(condition);
@@ -62,6 +63,7 @@
 
         root.appendChild(main);
         root.appendChild(details);
+        root.appendChild(uv);
         return root;
     }
 
@@ -136,6 +138,41 @@
         return item;
     }
 
+    function createUvIndicator(current) {
+        var value = current ? current.uvIndex : null;
+        var maxValue = current ? current.uvIndexMax : null;
+        var colorValue = value === null || value === undefined ? maxValue : value;
+        var category = uvCategory(colorValue);
+        var root = dom.create("div", "weather-uv weather-uv-" + category.key);
+
+        root.setAttribute("aria-label", "Indice UV");
+        root.appendChild(dom.create("span", "weather-uv-label", "UV"));
+        root.appendChild(dom.create("strong", "weather-uv-value", formatUv(value)));
+        root.appendChild(dom.create("span", "weather-uv-level", category.label));
+        root.appendChild(dom.create("span", "weather-uv-max", "Max oggi " + formatUv(maxValue)));
+        return root;
+    }
+
+    function uvCategory(value) {
+        var number = parseFloat(value);
+        if (isNaN(number)) {
+            return { key: "unknown", label: "N/D" };
+        }
+        if (number < 3) {
+            return { key: "low", label: "Basso" };
+        }
+        if (number < 6) {
+            return { key: "moderate", label: "Moderato" };
+        }
+        if (number < 8) {
+            return { key: "high", label: "Alto" };
+        }
+        if (number < 11) {
+            return { key: "very-high", label: "Molto alto" };
+        }
+        return { key: "extreme", label: "Estremo" };
+    }
+
     function formatTemperature(value) {
         return value === null || value === undefined ? "--" : value + "\u00b0";
     }
@@ -150,6 +187,11 @@
 
     function formatMillimeters(value) {
         return value === null || value === undefined ? "--" : value + " mm";
+    }
+
+    function formatUv(value) {
+        var number = parseFloat(value);
+        return isNaN(number) ? "--" : number.toFixed(1);
     }
 
     function formatShortDate(value) {
