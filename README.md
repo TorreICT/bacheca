@@ -61,7 +61,7 @@ BACHECA_WEATHER_FORECAST_URL=https://api.open-meteo.com/v1/forecast
 BACHECA_WEATHER_REVERSE_GEOCODE_URL=https://nominatim.openstreetmap.org/reverse
 BACHECA_WEATHER_CACHE_PATH=.cache/weather-cache.json
 BACHECA_WEATHER_CACHE_TTL_MS=600000
-BACHECA_MARKET_BASE_URL=https://stooq.com/q/l/
+BACHECA_MARKET_YAHOO_BASE_URL=https://query1.finance.yahoo.com/v8/finance/chart/
 BACHECA_MARKET_CACHE_PATH=.cache/market-cache.json
 BACHECA_MARKET_CACHE_TTL_MS=300000
 BACHECA_MARKET_MAX_ITEMS=4
@@ -246,17 +246,18 @@ URLs are accepted, so the browser still calls only same-origin dashboard APIs.
 
 ## Market indexes
 
-Market indexes are optional and use Stooq quote CSV by default, with no API key:
+Market indexes are optional and use Yahoo Finance chart data by default, with no
+API key:
 
 ```env
-BACHECA_MARKET_BASE_URL=https://stooq.com/q/l/
+BACHECA_MARKET_YAHOO_BASE_URL=https://query1.finance.yahoo.com/v8/finance/chart/
 BACHECA_MARKET_CACHE_PATH=.cache/market-cache.json
 BACHECA_MARKET_CACHE_TTL_MS=300000
 BACHECA_MARKET_MAX_ITEMS=4
 ```
 
 Use the Telegram panel button `Mercati` to enable/disable the module, toggle
-common indexes, or add a custom Stooq symbol. The raw shortcut is:
+common indexes, or add a custom market symbol. The raw shortcut is:
 
 ```text
 /markets <symbol> [| label]
@@ -265,7 +266,7 @@ common indexes, or add a custom Stooq symbol. The raw shortcut is:
 Examples: `/markets ^SPX | S&P 500` or `/markets ^UKX | FTSE 100`.
 The default selection is S&P 500, Dow Jones, Nasdaq 100, and DAX. The bar
 shows up to 4 compact market cards using the last value and change versus the
-previous close. If Stooq is unavailable, stale cached quotes are used when
+previous close. If the provider is unavailable, stale cached quotes are used when
 available; otherwise the slide shows a short unavailable message.
 
 ## Photos

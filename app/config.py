@@ -97,7 +97,7 @@ class Settings:
     basketball_max_items = get_int("BACHECA_BASKETBALL_MAX_ITEMS", 4)
     basketball_default_season = os.getenv("BACHECA_BASKETBALL_DEFAULT_SEASON", "")
 
-    market_base_url = os.getenv("BACHECA_MARKET_BASE_URL", "https://stooq.com/q/l/")
+    market_yahoo_base_url = os.getenv("BACHECA_MARKET_YAHOO_BASE_URL", "https://query1.finance.yahoo.com/v8/finance/chart/")
     market_cache_path = resolve_path("BACHECA_MARKET_CACHE_PATH", ".cache/market-cache.json")
     market_cache_ttl_ms = get_int("BACHECA_MARKET_CACHE_TTL_MS", 300000)
     market_max_items = get_int("BACHECA_MARKET_MAX_ITEMS", 4)

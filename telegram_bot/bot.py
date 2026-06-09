@@ -685,7 +685,7 @@ async def callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(("✅ Indice selezionato: " if selected else "🗑️ Indice rimosso: ") + markets.common_label(symbol), reply_markup=market_symbols_keyboard())
     elif data == "markets_symbol_add":
         start_flow(context, "market_symbol", "value", {})
-        await query.edit_message_text("➕ Scrivi il simbolo Stooq, oppure simbolo | etichetta. Esempio: ^SPX | S&P 500. Usa /cancel per fermarti.")
+        await query.edit_message_text("➕ Scrivi il simbolo mercato, oppure simbolo | etichetta. Esempio: ^SPX | S&P 500. Usa /cancel per fermarti.")
 
 
 def start_flow(context, name, step, data):

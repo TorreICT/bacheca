@@ -1,11 +1,10 @@
-import csv
-import io
 import json
 import os
 import re
 import tempfile
 from datetime import datetime, timedelta, timezone
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
+from zoneinfo import ZoneInfo
 
 import httpx
 
@@ -26,7 +25,16 @@ COMMON_SYMBOLS = DEFAULT_SYMBOLS + [
 ]
 
 SYMBOL_RE = re.compile(r"^[A-Z0-9.\^_\-=]{1,24}$")
-STOOQ_FIELDS = "sd2t2ohlcvp"
+YAHOO_SYMBOLS = {
+    "^SPX": "^GSPC",
+    "^DJI": "^DJI",
+    "^NDQ": "^NDX",
+    "^NDX": "^NDX",
+    "^DAX": "^GDAXI",
+    "^UKX": "^FTSE",
+    "^CAC": "^FCHI",
+    "^SMI": "^SSMI",
+}
 
 
 class MarketSymbolError(ValueError):
@@ -152,7 +160,9 @@ async def load_index(entry):
     label = clean_label(entry.get("label") or common_label(symbol))
     cached = read_cache(symbol)
     if cached and cache_is_fresh(cached):
-        return cached_payload(cached, label)
+        fresh_payload = cached_payload(cached, label)
+        if fresh_payload:
+            return fresh_payload
 
     try:
         payload = await fetch_index(symbol, label)
@@ -167,48 +177,79 @@ async def load_index(entry):
 
 
 async def fetch_index(symbol, label):
-    params = urlencode({"s": symbol, "f": STOOQ_FIELDS, "h": "", "e": "csv"})
-    url = settings.market_base_url + "?" + params
+    provider_symbol = yahoo_symbol_for(symbol)
+    url = yahoo_url(provider_symbol)
     async with httpx.AsyncClient(timeout=settings.request_timeout) as client:
         response = await client.get(
             url,
             headers={
-                "Accept": "text/csv,*/*",
+                "Accept": "application/json,*/*",
                 "User-Agent": "Torrescalla-Bacheca/2.0",
             },
         )
         response.raise_for_status()
-        return normalize_quote(symbol, label, response.text)
+        return normalize_yahoo_quote(symbol, label, response.json(), provider_symbol)
 
 
-def normalize_quote(symbol, label, text):
-    rows = list(csv.DictReader(io.StringIO(str(text or ""))))
-    if len(rows) != 1:
-        raise ValueError("Malformed market response")
+def yahoo_symbol_for(symbol):
+    normalized = normalize_symbol(symbol)
+    return YAHOO_SYMBOLS.get(normalized, normalized)
 
-    row = rows[0]
-    close = parse_number(row.get("Close"))
-    previous = parse_number(row.get("Prev"))
+
+def yahoo_url(symbol):
+    base = str(getattr(settings, "market_yahoo_base_url", "") or "https://query1.finance.yahoo.com/v8/finance/chart/")
+    return base.rstrip("/") + "/" + quote(symbol, safe="") + "?" + urlencode({"range": "1d", "interval": "1m"})
+
+
+def normalize_yahoo_quote(symbol, label, data, provider_symbol=None):
+    chart = data.get("chart") if isinstance(data, dict) else None
+    if not isinstance(chart, dict) or chart.get("error"):
+        raise ValueError("Market quote unavailable")
+    results = chart.get("result")
+    if not isinstance(results, list) or not results:
+        raise ValueError("Market quote unavailable")
+
+    meta = results[0].get("meta") if isinstance(results[0], dict) else None
+    if not isinstance(meta, dict):
+        raise ValueError("Market quote unavailable")
+
+    close = parse_number(meta.get("regularMarketPrice"))
+    previous = parse_number(meta.get("previousClose"))
+    if previous is None:
+        previous = parse_number(meta.get("chartPreviousClose"))
     if close is None or previous is None or previous == 0:
         raise ValueError("Market quote unavailable")
 
     change = close - previous
-    percent = (change / previous) * 100
-    date_text = clean_text(row.get("Date"))
-    time_text = clean_text(row.get("Time"))
+    quote_time = yahoo_quote_time(meta)
     return {
         "symbol": symbol,
+        "providerSymbol": provider_symbol or meta.get("symbol") or "",
         "label": clean_label(label),
         "value": round(close, 2),
         "previous": round(previous, 2),
         "change": round(change, 2),
-        "changePercent": round(percent, 2),
+        "changePercent": round((change / previous) * 100, 2),
         "direction": direction_for(change),
-        "date": "" if date_text == "N/D" else date_text,
-        "time": "" if time_text == "N/D" else time_text,
+        "date": quote_time.date().isoformat() if quote_time else "",
+        "time": quote_time.strftime("%H:%M:%S") if quote_time else "",
         "updatedAt": now_iso(),
         "available": True,
+        "source": "yahoo",
     }
+
+
+def yahoo_quote_time(meta):
+    try:
+        stamp = int(meta.get("regularMarketTime"))
+    except (TypeError, ValueError):
+        return None
+    tz_name = clean_text(meta.get("exchangeTimezoneName"))
+    try:
+        tz = ZoneInfo(tz_name) if tz_name else timezone.utc
+    except Exception:
+        tz = timezone.utc
+    return datetime.fromtimestamp(stamp, tz)
 
 
 def parse_number(value):
@@ -270,6 +311,8 @@ def cached_payload(entry, label, stale=False):
     if not isinstance(entry, dict) or not isinstance(entry.get("payload"), dict):
         return None
     payload = dict(entry["payload"])
+    if clean_text(payload.get("source")).lower() != "yahoo":
+        return None
     payload["label"] = clean_label(label)
     if stale:
         payload["stale"] = True

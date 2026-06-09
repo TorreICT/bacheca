@@ -49,48 +49,48 @@ if find_spec("telegram") is None:
 from telegram_bot import bot
 
 
-VALID_CSV = """Symbol,Date,Time,Open,High,Low,Close,Volume,Prev
-^SPX,2026-06-04,22:03:01,7526.1,7598.1,7526.1,7584.3,1947870919,7553.7
-"""
+YAHOO_CHART = {
+    "chart": {
+        "result": [
+            {
+                "meta": {
+                    "symbol": "^GSPC",
+                    "regularMarketPrice": 7440.4,
+                    "previousClose": 7383.74,
+                    "regularMarketTime": 1780937326,
+                    "exchangeTimezoneName": "America/New_York",
+                }
+            }
+        ],
+        "error": None,
+    }
+}
 
 
 class MarketQuoteTests(unittest.TestCase):
-    def test_normalize_quote_computes_change_from_previous_close(self):
-        quote = markets.normalize_quote("^SPX", "S&P 500", VALID_CSV)
+    def test_normalize_yahoo_quote_computes_change_from_previous_close(self):
+        quote = markets.normalize_yahoo_quote("^SPX", "S&P 500", YAHOO_CHART, "^GSPC")
 
         self.assertEqual(quote["symbol"], "^SPX")
+        self.assertEqual(quote["providerSymbol"], "^GSPC")
         self.assertEqual(quote["label"], "S&P 500")
-        self.assertEqual(quote["value"], 7584.3)
-        self.assertEqual(quote["previous"], 7553.7)
-        self.assertEqual(quote["change"], 30.6)
-        self.assertEqual(quote["changePercent"], 0.41)
+        self.assertEqual(quote["value"], 7440.4)
+        self.assertEqual(quote["previous"], 7383.74)
+        self.assertEqual(quote["change"], 56.66)
+        self.assertEqual(quote["changePercent"], 0.77)
         self.assertEqual(quote["direction"], "up")
+        self.assertEqual(quote["date"], "2026-06-08")
         self.assertTrue(quote["available"])
 
-    def test_normalize_quote_rejects_nd_row(self):
-        text = """Symbol,Date,Time,Open,High,Low,Close,Volume,Prev
-^SPX,N/D,N/D,N/D,N/D,N/D,N/D,N/D,N/D
-"""
-
-        with self.assertRaises(ValueError):
-            markets.normalize_quote("^SPX", "S&P 500", text)
-
-    def test_normalize_quote_rejects_missing_previous_close(self):
-        text = """Symbol,Date,Time,Open,High,Low,Close,Volume
-^SPX,2026-06-04,22:03:01,7526.1,7598.1,7526.1,7584.3,1947870919
-"""
-
-        with self.assertRaises(ValueError):
-            markets.normalize_quote("^SPX", "S&P 500", text)
-
-    def test_normalize_quote_rejects_malformed_response(self):
-        with self.assertRaises(ValueError):
-            markets.normalize_quote("^SPX", "S&P 500", "not,csv\n")
+    def test_yahoo_symbol_for_maps_legacy_common_indexes(self):
+        self.assertEqual(markets.yahoo_symbol_for("^SPX"), "^GSPC")
+        self.assertEqual(markets.yahoo_symbol_for("^NDQ"), "^NDX")
+        self.assertEqual(markets.yahoo_symbol_for("^DAX"), "^GDAXI")
 
 
 class MarketCacheTests(unittest.TestCase):
     def test_load_index_uses_fresh_cache(self):
-        payload = markets.normalize_quote("^SPX", "S&P 500", VALID_CSV)
+        payload = markets.normalize_yahoo_quote("^SPX", "S&P 500", YAHOO_CHART, "^GSPC")
 
         with tempfile.TemporaryDirectory() as temp_dir:
             cache_path = Path(temp_dir) / "market-cache.json"
@@ -104,10 +104,29 @@ class MarketCacheTests(unittest.TestCase):
                     result = asyncio.run(markets.load_index({"symbol": "^SPX", "label": "S&P 500"}))
 
         fetch_mock.assert_not_awaited()
-        self.assertEqual(result["value"], 7584.3)
+        self.assertEqual(result["value"], 7440.4)
+
+    def test_load_index_ignores_legacy_cache_without_current_source(self):
+        payload = markets.normalize_yahoo_quote("^SPX", "S&P 500", YAHOO_CHART, "^GSPC")
+        legacy_payload = dict(payload)
+        legacy_payload.pop("source", None)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            cache_path = Path(temp_dir) / "market-cache.json"
+            cache_path.write_text(
+                json.dumps({"^SPX": {"fetchedAt": markets.now_iso(), "payload": legacy_payload}}),
+                encoding="utf-8",
+            )
+            with patch.object(markets.settings, "market_cache_path", cache_path):
+                fetch_mock = AsyncMock(return_value=payload)
+                with patch("app.services.markets.fetch_index", fetch_mock):
+                    result = asyncio.run(markets.load_index({"symbol": "^SPX", "label": "S&P 500"}))
+
+        fetch_mock.assert_awaited_once()
+        self.assertEqual(result["source"], "yahoo")
 
     def test_load_index_uses_stale_cache_when_provider_fails(self):
-        payload = markets.normalize_quote("^SPX", "S&P 500", VALID_CSV)
+        payload = markets.normalize_yahoo_quote("^SPX", "S&P 500", YAHOO_CHART, "^GSPC")
 
         with tempfile.TemporaryDirectory() as temp_dir:
             cache_path = Path(temp_dir) / "market-cache.json"
@@ -123,7 +142,7 @@ class MarketCacheTests(unittest.TestCase):
                     result = asyncio.run(markets.load_index({"symbol": "^SPX", "label": "S&P 500"}))
 
         fetch_mock.assert_awaited_once()
-        self.assertEqual(result["value"], 7584.3)
+        self.assertEqual(result["value"], 7440.4)
         self.assertTrue(result["stale"])
 
     def test_load_index_returns_unavailable_without_cache(self):
