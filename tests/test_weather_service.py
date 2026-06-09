@@ -52,6 +52,23 @@ class WeatherServiceTests(unittest.TestCase):
                 "weather_code",
             )
 
+    def test_current_uv_index_field_is_accepted(self):
+        with patch.object(weather.settings, "weather_forecast_url", "https://example.test/forecast"):
+            url = weather.build_forecast_url(
+                45.4766567,
+                9.2350757,
+                "Europe/Rome",
+                "2026-06-04",
+                "2026-06-08",
+                "temperature_2m,uv_index",
+                "weather_code,uv_index_max",
+            )
+
+        params = parse_qs(urlsplit(url).query)
+
+        self.assertEqual(params["current"], ["temperature_2m,uv_index"])
+        self.assertEqual(params["daily"], ["weather_code,uv_index_max"])
+
     def test_forecast_range_is_limited(self):
         with self.assertRaises(weather.WeatherRequestError):
             weather.build_forecast_url(

@@ -85,7 +85,7 @@ p {
 }
 
 .weather-details > * + * {
-    margin-left: 6px;
+    margin-left: 0;
 }
 
 .stats-grid > * + * {
@@ -932,21 +932,26 @@ p {
 }
 
 .weather-details {
-    flex: 1 1 auto;
-    min-width: 0;
-    display: flex;
-    flex-wrap: nowrap;
-    gap: 0;
+    flex: 0 1 218px;
+    min-width: 198px;
+    padding: 8px;
+    border-radius: 10px;
+    background: #202226;
+    box-shadow: 0 7px 16px rgba(0, 0, 0, 0.18);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    grid-gap: 6px;
     overflow: hidden;
 }
 
 .weather-detail {
     flex: 1 1 0;
-    min-width: 74px;
-    padding: 10px 12px;
-    border-radius: 10px;
-    background: #202226;
-    box-shadow: 0 7px 16px rgba(0, 0, 0, 0.18);
+    min-width: 0;
+    padding: 6px 7px;
+    border-radius: 8px;
+    background: #141619;
+    box-shadow: none;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -954,7 +959,15 @@ p {
     text-align: center;
 }
 
-.weather-detail span,
+.weather-detail span {
+    display: block;
+    max-width: none;
+    font-size: 11px;
+    line-height: 1.1;
+    white-space: normal;
+    overflow-wrap: break-word;
+}
+
 .forecast-rain {
     display: block;
     max-width: 70px;
@@ -966,13 +979,97 @@ p {
 
 .weather-detail strong {
     display: block;
-    margin-top: 6px;
-    max-width: 78px;
+    margin-top: 4px;
+    max-width: none;
     color: #ffffff;
-    font-size: 25px;
+    font-size: 17px;
+    font-weight: 700;
     line-height: 1.05;
     white-space: normal;
     overflow-wrap: break-word;
+}
+
+.weather-uv {
+    flex: 0 0 144px;
+    min-width: 124px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    box-shadow: 0 7px 16px rgba(0, 0, 0, 0.18);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    overflow: hidden;
+}
+
+.weather-uv span,
+.weather-uv strong {
+    display: block;
+}
+
+.weather-uv-label {
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+.weather-uv-value {
+    margin-top: 4px;
+    font-size: 46px;
+    font-weight: 800;
+    line-height: 0.96;
+    white-space: nowrap;
+}
+
+.weather-uv-level {
+    margin-top: 4px;
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.05;
+    white-space: normal;
+    overflow-wrap: break-word;
+}
+
+.weather-uv-max {
+    margin-top: 7px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.1;
+    opacity: 0.82;
+    white-space: normal;
+    overflow-wrap: break-word;
+}
+
+.weather-uv-low {
+    background: #58c76f;
+    color: #141619;
+}
+
+.weather-uv-moderate {
+    background: #f3c64e;
+    color: #141619;
+}
+
+.weather-uv-high {
+    background: #ee8b34;
+    color: #141619;
+}
+
+.weather-uv-very-high {
+    background: #cf3f3f;
+    color: #ffffff;
+}
+
+.weather-uv-extreme {
+    background: #8a4bb0;
+    color: #ffffff;
+}
+
+.weather-uv-unknown {
+    background: #333842;
+    color: #ffffff;
 }
 
 .weather-forecast {
@@ -1156,12 +1253,30 @@ p {
     }
 
     .weather-detail strong {
-        font-size: 22px;
+        font-size: 16px;
     }
 
     .weather-detail {
-        min-width: 70px;
-        padding: 9px 11px;
+        padding: 5px 6px;
+    }
+
+    .weather-details {
+        flex-basis: 200px;
+        min-width: 184px;
+    }
+
+    .weather-uv {
+        flex-basis: 128px;
+        min-width: 118px;
+        padding: 9px 10px;
+    }
+
+    .weather-uv-value {
+        font-size: 40px;
+    }
+
+    .weather-uv-level {
+        font-size: 13px;
     }
 
     .forecast-day {
@@ -1884,7 +1999,8 @@ p {
     }
 
     .weather-main,
-    .weather-detail,
+    .weather-details,
+    .weather-uv,
     .forecast-day,
     .menu-section {
         margin-top: 10px;
@@ -1895,7 +2011,13 @@ p {
     }
 
     .weather-details {
-        display: block;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+    }
+
+    .weather-uv {
+        min-height: 120px;
     }
 
     .menu-section {

@@ -73,6 +73,38 @@
         return Math.round(number);
     }
 
+    function roundOne(value) {
+        var number = parseFloat(value);
+        if (isNaN(number)) {
+            return null;
+        }
+        return Math.round(number * 10) / 10;
+    }
+
+    function dailyIndexForCurrentDate(daily, current) {
+        var dateText = current && current.time ? String(current.time).slice(0, 10) : dateUtils.formatIsoDate(new Date());
+        var i;
+
+        if (!daily || !daily.time || !daily.time.length) {
+            return 0;
+        }
+
+        for (i = 0; i < daily.time.length; i++) {
+            if (daily.time[i] === dateText) {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
+    function dailyValue(daily, field, index) {
+        if (!daily || !daily[field] || daily[field][index] === undefined) {
+            return null;
+        }
+        return daily[field][index];
+    }
+
     function labelFor(code) {
         var parsed = parseInt(code, 10);
         return weatherTypes[parsed] ? weatherTypes[parsed].label : "Meteo variabile";
@@ -89,11 +121,13 @@
         var days = [];
         var i;
         var dayCount;
+        var todayIndex;
 
         if (!current || !daily || !daily.time || !daily.time.length) {
             return null;
         }
 
+        todayIndex = dailyIndexForCurrentDate(daily, current);
         dayCount = Math.min(daily.time.length, weatherConfig.forecastDays);
         for (i = 0; i < dayCount; i++) {
             days.push({
@@ -113,6 +147,8 @@
                 humidity: round(current.relative_humidity_2m),
                 precipitation: current.precipitation === undefined || current.precipitation === null ? null : current.precipitation,
                 windSpeed: round(current.wind_speed_10m),
+                uvIndex: roundOne(current.uv_index),
+                uvIndexMax: roundOne(dailyValue(daily, "uv_index_max", todayIndex)),
                 code: current.weather_code,
                 label: labelFor(current.weather_code),
                 icon: iconFor(current.weather_code),

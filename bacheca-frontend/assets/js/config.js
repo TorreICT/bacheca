@@ -32,12 +32,14 @@
                 "apparent_temperature",
                 "precipitation",
                 "weather_code",
+                "uv_index",
                 "wind_speed_10m"
             ],
             daily: [
                 "weather_code",
                 "temperature_2m_max",
                 "temperature_2m_min",
+                "uv_index_max",
                 "precipitation_probability_max"
             ]
         }

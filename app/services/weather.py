@@ -23,6 +23,7 @@ CURRENT_FIELDS = frozenset(
         "cloud_cover",
         "pressure_msl",
         "surface_pressure",
+        "uv_index",
         "wind_speed_10m",
         "wind_direction_10m",
         "wind_gusts_10m",
