@@ -30,7 +30,7 @@ BAR_RESULT_TARGET = 2
 BAR_FIXTURE_TARGET = 2
 LIVE_REFRESH_LOOKBACK = timedelta(hours=4)
 LIVE_REFRESH_LOOKAHEAD = timedelta(minutes=15)
-MATCH_CACHE_VERSION = "v4"
+MATCH_CACHE_VERSION = "v5"
 BADGE_HOST = "crests.football-data.org"
 BADGE_MAX_BYTES = 1024 * 1024
 
@@ -211,7 +211,7 @@ def normalize_matches(code, body):
         elif item["kind"] == "fixture":
             fixtures.append(item)
 
-    results.sort(key=lambda item: item["sortAt"])
+    results.sort(key=lambda item: item["sortAt"], reverse=True)
     fixtures.sort(key=lambda item: (0 if item.get("live") else 1, item["sortAt"]))
 
     results, fixtures = select_balanced_matches(results, fixtures)
