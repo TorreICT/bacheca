@@ -28,6 +28,16 @@ def patched_basketball_settings(cache_path, ttl_ms=1800000):
         yield
 
 
+@contextmanager
+def patched_soccer_settings(cache_path, ttl_ms=600000):
+    with patch.object(soccer.settings, "soccer_provider", "football-data"), patch.object(
+        soccer.settings, "soccer_api_token", "test-token"
+    ), patch.object(soccer.settings, "soccer_cache_path", cache_path), patch.object(
+        soccer.settings, "soccer_cache_ttl_ms", ttl_ms
+    ):
+        yield
+
+
 def write_cache_entry(path, key, fetched_at, payload):
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as handle:
@@ -119,6 +129,95 @@ class BasketballCacheTests(unittest.TestCase):
         self.assertEqual(second["message"], "quota pause")
 
 
+class SoccerCacheTests(unittest.TestCase):
+    def test_cached_live_payload_forces_refresh_inside_ttl(self):
+        fixed = bar_widget.parse_datetime("2026-06-04T20:00:00+02:00")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            cache_path = Path(temp_dir) / "soccer-cache.json"
+            with patched_soccer_settings(cache_path), patch("app.services.bar_widget.now", return_value=fixed):
+                cache_key = soccer.match_cache_key("SA")
+                soccer.write_cache(cache_key, cached_soccer_payload(fixed, live=True))
+
+                fetched = empty_soccer_payload(fixed)
+                fetch_mock = AsyncMock(return_value=fetched)
+                with patch("app.services.soccer.fetch_compact", fetch_mock):
+                    result = asyncio.run(soccer.load_compact("SA"))
+
+        fetch_mock.assert_awaited_once_with("SA")
+        self.assertEqual(result, fetched)
+
+    def test_cached_fixture_near_kickoff_forces_refresh_inside_ttl(self):
+        fixed = bar_widget.parse_datetime("2026-06-04T20:00:00+02:00")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            cache_path = Path(temp_dir) / "soccer-cache.json"
+            with patched_soccer_settings(cache_path), patch("app.services.bar_widget.now", return_value=fixed):
+                cache_key = soccer.match_cache_key("SA")
+                soccer.write_cache(cache_key, cached_soccer_payload(fixed, fixture_offset=timedelta(minutes=10)))
+
+                fetched = empty_soccer_payload(fixed)
+                fetch_mock = AsyncMock(return_value=fetched)
+                with patch("app.services.soccer.fetch_compact", fetch_mock):
+                    result = asyncio.run(soccer.load_compact("SA"))
+
+        fetch_mock.assert_awaited_once_with("SA")
+        self.assertEqual(result, fetched)
+
+    def test_cached_fixture_after_kickoff_forces_refresh_inside_ttl(self):
+        fixed = bar_widget.parse_datetime("2026-06-04T20:00:00+02:00")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            cache_path = Path(temp_dir) / "soccer-cache.json"
+            with patched_soccer_settings(cache_path), patch("app.services.bar_widget.now", return_value=fixed):
+                cache_key = soccer.match_cache_key("SA")
+                soccer.write_cache(cache_key, cached_soccer_payload(fixed, fixture_offset=-timedelta(hours=3, minutes=30)))
+
+                fetched = empty_soccer_payload(fixed)
+                fetch_mock = AsyncMock(return_value=fetched)
+                with patch("app.services.soccer.fetch_compact", fetch_mock):
+                    result = asyncio.run(soccer.load_compact("SA"))
+
+        fetch_mock.assert_awaited_once_with("SA")
+        self.assertEqual(result, fetched)
+
+    def test_cached_distant_fixture_can_still_use_cache_inside_ttl(self):
+        fixed = bar_widget.parse_datetime("2026-06-04T20:00:00+02:00")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            cache_path = Path(temp_dir) / "soccer-cache.json"
+            with patched_soccer_settings(cache_path), patch("app.services.bar_widget.now", return_value=fixed):
+                cache_key = soccer.match_cache_key("SA")
+                cached = cached_soccer_payload(fixed, fixture_offset=timedelta(days=2))
+                soccer.write_cache(cache_key, cached)
+
+                fetch_mock = AsyncMock(return_value=empty_soccer_payload(fixed))
+                with patch("app.services.soccer.fetch_compact", fetch_mock):
+                    result = asyncio.run(soccer.load_compact("SA"))
+
+        fetch_mock.assert_not_awaited()
+        self.assertEqual(result, cached)
+
+    def test_cached_live_item_without_fixtures_forces_refresh_inside_ttl(self):
+        fixed = bar_widget.parse_datetime("2026-06-04T20:00:00+02:00")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            cache_path = Path(temp_dir) / "soccer-cache.json"
+            with patched_soccer_settings(cache_path), patch("app.services.bar_widget.now", return_value=fixed):
+                cache_key = soccer.match_cache_key("SA")
+                payload = empty_soccer_payload(fixed)
+                payload["items"] = [cached_soccer_fixture(fixed, live=True)]
+                soccer.write_cache(cache_key, payload)
+
+                fetched = empty_soccer_payload(fixed)
+                fetch_mock = AsyncMock(return_value=fetched)
+                with patch("app.services.soccer.fetch_compact", fetch_mock):
+                    result = asyncio.run(soccer.load_compact("SA"))
+
+        fetch_mock.assert_awaited_once_with("SA")
+        self.assertEqual(result, fetched)
+
+
 class SoccerLiveNormalizationTests(unittest.TestCase):
     def test_live_match_survives_old_kickoff_cutoff(self):
         current = bar_widget.parse_datetime("2026-06-04T20:00:00+02:00")
@@ -138,26 +237,116 @@ class SoccerLiveNormalizationTests(unittest.TestCase):
 
     def test_live_match_keeps_slot_but_displays_after_results(self):
         current = bar_widget.parse_datetime("2026-06-04T20:00:00+02:00")
-        matches = [
-            soccer_match((current - timedelta(days=5)).isoformat(), "FINISHED"),
-            soccer_match((current - timedelta(days=4)).isoformat(), "FINISHED"),
-            soccer_match((current - timedelta(days=3)).isoformat(), "FINISHED"),
-            soccer_match((current - timedelta(days=2)).isoformat(), "FINISHED"),
-            soccer_match((current - timedelta(days=1)).isoformat(), "FINISHED"),
-            soccer_match((current - timedelta(minutes=20)).isoformat(), "IN_PLAY"),
-            soccer_match((current + timedelta(days=1)).isoformat(), "SCHEDULED"),
-        ]
-
-        with patch("app.services.bar_widget.now", return_value=current):
-            payload = soccer.normalize_matches("SA", {"matches": matches})
+        payload = soccer_payload(
+            current,
+            [
+                (timedelta(days=-5), "FINISHED"),
+                (timedelta(days=-4), "FINISHED"),
+                (timedelta(days=-3), "FINISHED"),
+                (timedelta(days=-2), "FINISHED"),
+                (timedelta(days=-1), "FINISHED"),
+                (timedelta(minutes=-20), "IN_PLAY"),
+                (timedelta(days=1), "SCHEDULED"),
+            ],
+        )
 
         self.assertEqual(len(payload["items"]), 4)
         self.assertEqual(len(payload["results"]), 2)
         self.assertEqual(len(payload["fixtures"]), 2)
-        self.assertEqual(
-            [item["kind"] if not item.get("live") else "live" for item in payload["items"]],
-            ["result", "result", "live", "fixture"],
+        self.assertEqual(soccer_item_types(payload), ["result", "result", "live", "fixture"])
+
+    def test_one_live_fills_missing_past_with_next_matches(self):
+        current = bar_widget.parse_datetime("2026-06-04T20:00:00+02:00")
+        payload = soccer_payload(
+            current,
+            [
+                (timedelta(days=-1), "FINISHED"),
+                (timedelta(minutes=-20), "IN_PLAY"),
+                (timedelta(days=1), "SCHEDULED"),
+                (timedelta(days=2), "SCHEDULED"),
+                (timedelta(days=3), "SCHEDULED"),
+            ],
         )
+
+        self.assertEqual(soccer_item_types(payload), ["result", "live", "fixture", "fixture"])
+
+    def test_two_live_matches_keep_one_past_and_one_next(self):
+        current = bar_widget.parse_datetime("2026-06-04T20:00:00+02:00")
+        payload = soccer_payload(
+            current,
+            [
+                (timedelta(days=-3), "FINISHED"),
+                (timedelta(days=-2), "FINISHED"),
+                (timedelta(minutes=-30), "IN_PLAY"),
+                (timedelta(minutes=-10), "LIVE"),
+                (timedelta(days=1), "SCHEDULED"),
+                (timedelta(days=2), "SCHEDULED"),
+            ],
+        )
+
+        self.assertEqual(soccer_item_types(payload), ["result", "live", "live", "fixture"])
+
+    def test_two_live_matches_fill_missing_next_with_past(self):
+        current = bar_widget.parse_datetime("2026-06-04T20:00:00+02:00")
+        payload = soccer_payload(
+            current,
+            [
+                (timedelta(days=-3), "FINISHED"),
+                (timedelta(days=-2), "FINISHED"),
+                (timedelta(days=-1), "FINISHED"),
+                (timedelta(minutes=-30), "IN_PLAY"),
+                (timedelta(minutes=-10), "LIVE"),
+            ],
+        )
+
+        self.assertEqual(soccer_item_types(payload), ["result", "result", "live", "live"])
+
+    def test_three_live_matches_complete_with_past_before_next(self):
+        current = bar_widget.parse_datetime("2026-06-04T20:00:00+02:00")
+        payload = soccer_payload(
+            current,
+            [
+                (timedelta(days=-2), "FINISHED"),
+                (timedelta(minutes=-45), "IN_PLAY"),
+                (timedelta(minutes=-30), "LIVE"),
+                (timedelta(minutes=-15), "PAUSED"),
+                (timedelta(days=1), "SCHEDULED"),
+            ],
+        )
+
+        self.assertEqual(soccer_item_types(payload), ["result", "live", "live", "live"])
+
+    def test_three_live_matches_complete_with_next_when_past_missing(self):
+        current = bar_widget.parse_datetime("2026-06-04T20:00:00+02:00")
+        payload = soccer_payload(
+            current,
+            [
+                (timedelta(minutes=-45), "IN_PLAY"),
+                (timedelta(minutes=-30), "LIVE"),
+                (timedelta(minutes=-15), "PAUSED"),
+                (timedelta(days=1), "SCHEDULED"),
+                (timedelta(days=2), "SCHEDULED"),
+            ],
+        )
+
+        self.assertEqual(soccer_item_types(payload), ["live", "live", "live", "fixture"])
+
+    def test_four_live_matches_use_all_slots(self):
+        current = bar_widget.parse_datetime("2026-06-04T20:00:00+02:00")
+        payload = soccer_payload(
+            current,
+            [
+                (timedelta(days=-1), "FINISHED"),
+                (timedelta(minutes=-50), "IN_PLAY"),
+                (timedelta(minutes=-40), "LIVE"),
+                (timedelta(minutes=-30), "PAUSED"),
+                (timedelta(minutes=-20), "IN_PLAY"),
+                (timedelta(minutes=-10), "LIVE"),
+                (timedelta(days=1), "SCHEDULED"),
+            ],
+        )
+
+        self.assertEqual(soccer_item_types(payload), ["live", "live", "live", "live"])
 
 
 def api_sports_game(status_short="NS", status_long="Not Started", stage=None, week=None):
@@ -222,6 +411,37 @@ def cached_basketball_payload(fixed, live):
     }
 
 
+def empty_soccer_payload(fixed):
+    return {
+        "enabled": True,
+        "available": True,
+        "competition": "SA",
+        "label": "Serie A",
+        "results": [],
+        "fixtures": [],
+        "items": [],
+        "updatedAt": fixed.isoformat(),
+    }
+
+
+def cached_soccer_payload(fixed, live=False, fixture_offset=timedelta()):
+    payload = empty_soccer_payload(fixed)
+    fixture = cached_soccer_fixture(fixed + fixture_offset, live=live)
+    payload["fixtures"] = [fixture]
+    payload["items"] = [fixture]
+    return payload
+
+
+def cached_soccer_fixture(match_time, live=False):
+    return {
+        "kind": "fixture",
+        "time": match_time.isoformat(),
+        "live": live,
+        "home": {"name": "Home FC", "abbr": "HOM"},
+        "away": {"name": "Away FC", "abbr": "AWY"},
+    }
+
+
 def soccer_match(utc_date, status):
     return {
         "utcDate": utc_date,
@@ -250,6 +470,22 @@ def soccer_match(utc_date, status):
             "penalties": {},
         },
     }
+
+
+def soccer_payload(current, specs):
+    matches = [soccer_match((current + offset).isoformat(), status) for offset, status in specs]
+    with patch("app.services.bar_widget.now", return_value=current):
+        return soccer.normalize_matches("SA", {"matches": matches})
+
+
+def soccer_item_types(payload):
+    types = []
+    for item in payload["items"]:
+        if item.get("live"):
+            types.append("live")
+        else:
+            types.append(item["kind"])
+    return types
 
 
 if __name__ == "__main__":

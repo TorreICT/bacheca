@@ -28,7 +28,9 @@ BAR_MATCH_WINDOW_DAYS = 30
 BAR_MATCH_TOTAL_LIMIT = 4
 BAR_RESULT_TARGET = 2
 BAR_FIXTURE_TARGET = 2
-MATCH_CACHE_VERSION = "v3"
+LIVE_REFRESH_LOOKBACK = timedelta(hours=4)
+LIVE_REFRESH_LOOKAHEAD = timedelta(minutes=15)
+MATCH_CACHE_VERSION = "v4"
 BADGE_HOST = "crests.football-data.org"
 BADGE_MAX_BYTES = 1024 * 1024
 
@@ -231,22 +233,41 @@ def normalize_matches(code, body):
 
 
 def select_balanced_matches(results, fixtures):
-    result_limit = min(BAR_RESULT_TARGET, len(results))
-    fixture_limit = min(BAR_FIXTURE_TARGET, len(fixtures))
+    live = live_matches(fixtures)
+    upcoming = non_live_matches(fixtures)
+    selected_live = live[:BAR_MATCH_TOTAL_LIMIT]
+    remaining = BAR_MATCH_TOTAL_LIMIT - len(selected_live)
 
-    while result_limit + fixture_limit < BAR_MATCH_TOTAL_LIMIT:
-        if result_limit < BAR_RESULT_TARGET and fixture_limit < len(fixtures):
-            fixture_limit += 1
-        elif fixture_limit < BAR_FIXTURE_TARGET and result_limit < len(results):
+    if remaining <= 0:
+        return [], selected_live
+
+    result_target, upcoming_target = completion_targets(len(selected_live))
+    result_limit = min(result_target, len(results))
+    upcoming_limit = min(upcoming_target, len(upcoming))
+
+    while result_limit + upcoming_limit < remaining:
+        if result_limit < result_target and upcoming_limit < len(upcoming):
+            upcoming_limit += 1
+        elif upcoming_limit < upcoming_target and result_limit < len(results):
             result_limit += 1
-        elif fixture_limit < len(fixtures):
-            fixture_limit += 1
         elif result_limit < len(results):
             result_limit += 1
+        elif upcoming_limit < len(upcoming):
+            upcoming_limit += 1
         else:
             break
 
-    return results[:result_limit], fixtures[:fixture_limit]
+    return results[:result_limit], selected_live + upcoming[:upcoming_limit]
+
+
+def completion_targets(live_count):
+    if live_count >= 3:
+        return 1, 0
+    if live_count == 2:
+        return 1, 1
+    if live_count == 1:
+        return 2, 1
+    return BAR_RESULT_TARGET, BAR_FIXTURE_TARGET
 
 
 def live_matches(fixtures):
@@ -531,18 +552,25 @@ def payload_needs_live_refresh(payload):
     current = bar_widget.now()
     if not isinstance(payload, dict):
         return False
-    for item in payload.get("fixtures") or []:
-        if not isinstance(item, dict):
-            continue
+    for item in cached_fixture_items(payload):
         if item.get("live"):
             return True
         try:
             match_time = bar_widget.parse_datetime(item.get("time"))
         except Exception:
             continue
-        if current - timedelta(hours=1) <= match_time <= current + timedelta(minutes=15):
+        if current - LIVE_REFRESH_LOOKBACK <= match_time <= current + LIVE_REFRESH_LOOKAHEAD:
             return True
     return False
+
+
+def cached_fixture_items(payload):
+    fixtures = []
+    for key in ("fixtures", "items"):
+        for item in payload.get(key) or []:
+            if isinstance(item, dict) and item.get("kind") != "result":
+                fixtures.append(item)
+    return fixtures
 
 
 def read_cache(code):
