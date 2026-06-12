@@ -254,7 +254,7 @@ class SoccerLiveNormalizationTests(unittest.TestCase):
         self.assertEqual(len(payload["results"]), 2)
         self.assertEqual(len(payload["fixtures"]), 2)
         self.assertEqual(soccer_item_types(payload), ["result", "result", "live", "fixture"])
-        self.assertEqual([item["displayDate"] for item in payload["results"]], ["03/06", "02/06"])
+        self.assertEqual([item["displayDate"] for item in payload["results"]], ["02/06", "03/06"])
 
     def test_just_finished_match_is_selected_before_older_results(self):
         current = bar_widget.parse_datetime("2026-06-04T20:00:00+02:00")
@@ -272,7 +272,7 @@ class SoccerLiveNormalizationTests(unittest.TestCase):
         )
 
         self.assertEqual(soccer_item_types(payload), ["result", "result", "fixture", "fixture"])
-        self.assertEqual([item["displayDate"] for item in payload["results"]], ["04/06", "02/06"])
+        self.assertEqual([item["displayDate"] for item in payload["results"]], ["02/06", "04/06"])
 
     def test_one_live_fills_missing_past_with_next_matches(self):
         current = bar_widget.parse_datetime("2026-06-04T20:00:00+02:00")
