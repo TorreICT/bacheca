@@ -103,14 +103,14 @@
     }
 
     function buildSoccerSlide(soccer) {
-        return buildSportSlide("soccer", "Calcio", soccer, "Calcio non disponibile");
+        return buildSportSlide("soccer", "Calcio", soccer, "Calcio non disponibile", true);
     }
 
     function buildBasketballSlide(basketball) {
-        return buildSportSlide("basketball", "Basket", basketball, "Basket non disponibile");
+        return buildSportSlide("basketball", "Basket", basketball, "Basket non disponibile", false);
     }
 
-    function buildSportSlide(type, title, sport, unavailableText) {
+    function buildSportSlide(type, title, sport, unavailableText, resultsBeforeLive) {
         var matches = [];
         var fixtures = arrayOrEmpty(sport.fixtures);
         var results = arrayOrEmpty(sport.results);
@@ -127,11 +127,20 @@
                 }
             }
 
-            for (i = 0; i < liveMatches.length; i++) {
-                matches.push({ match: liveMatches[i], label: "Live" });
-            }
-            for (i = 0; i < results.length; i++) {
-                matches.push({ match: results[i], label: "Ultime" });
+            if (resultsBeforeLive) {
+                for (i = 0; i < results.length; i++) {
+                    matches.push({ match: results[i], label: "Ultime" });
+                }
+                for (i = 0; i < liveMatches.length; i++) {
+                    matches.push({ match: liveMatches[i], label: "Live" });
+                }
+            } else {
+                for (i = 0; i < liveMatches.length; i++) {
+                    matches.push({ match: liveMatches[i], label: "Live" });
+                }
+                for (i = 0; i < results.length; i++) {
+                    matches.push({ match: results[i], label: "Ultime" });
+                }
             }
             for (i = 0; i < futureMatches.length; i++) {
                 matches.push({ match: futureMatches[i], label: "Prossime" });

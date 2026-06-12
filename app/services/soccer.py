@@ -28,7 +28,7 @@ BAR_MATCH_WINDOW_DAYS = 30
 BAR_MATCH_TOTAL_LIMIT = 4
 BAR_RESULT_TARGET = 2
 BAR_FIXTURE_TARGET = 2
-MATCH_CACHE_VERSION = "v2"
+MATCH_CACHE_VERSION = "v3"
 BADGE_HOST = "crests.football-data.org"
 BADGE_MAX_BYTES = 1024 * 1024
 
@@ -213,7 +213,7 @@ def normalize_matches(code, body):
     fixtures.sort(key=lambda item: (0 if item.get("live") else 1, item["sortAt"]))
 
     results, fixtures = select_balanced_matches(results, fixtures)
-    items = live_matches(fixtures) + results + non_live_matches(fixtures)
+    items = results + live_matches(fixtures) + non_live_matches(fixtures)
 
     for item in results + fixtures + items:
         item.pop("sortAt", None)

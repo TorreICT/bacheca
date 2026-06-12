@@ -136,6 +136,29 @@ class SoccerLiveNormalizationTests(unittest.TestCase):
 
         self.assertIsNone(soccer.normalize_match(match, current))
 
+    def test_live_match_keeps_slot_but_displays_after_results(self):
+        current = bar_widget.parse_datetime("2026-06-04T20:00:00+02:00")
+        matches = [
+            soccer_match((current - timedelta(days=5)).isoformat(), "FINISHED"),
+            soccer_match((current - timedelta(days=4)).isoformat(), "FINISHED"),
+            soccer_match((current - timedelta(days=3)).isoformat(), "FINISHED"),
+            soccer_match((current - timedelta(days=2)).isoformat(), "FINISHED"),
+            soccer_match((current - timedelta(days=1)).isoformat(), "FINISHED"),
+            soccer_match((current - timedelta(minutes=20)).isoformat(), "IN_PLAY"),
+            soccer_match((current + timedelta(days=1)).isoformat(), "SCHEDULED"),
+        ]
+
+        with patch("app.services.bar_widget.now", return_value=current):
+            payload = soccer.normalize_matches("SA", {"matches": matches})
+
+        self.assertEqual(len(payload["items"]), 4)
+        self.assertEqual(len(payload["results"]), 2)
+        self.assertEqual(len(payload["fixtures"]), 2)
+        self.assertEqual(
+            [item["kind"] if not item.get("live") else "live" for item in payload["items"]],
+            ["result", "result", "live", "fixture"],
+        )
+
 
 def api_sports_game(status_short="NS", status_long="Not Started", stage=None, week=None):
     return {
