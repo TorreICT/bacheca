@@ -389,15 +389,20 @@ p {
 .clock-date {
     flex: 0 0 auto;
     margin-top: 0;
-    padding: 8px 14px;
+    min-height: 45px;
+    padding: 5px 14px 8px;
     border-radius: 10px;
     background: #202226;
     color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 28px;
     font-weight: 700;
-    line-height: 1.04;
+    line-height: 1.16;
     text-align: center;
     white-space: nowrap;
+    overflow: visible;
 }
 
 .last-updated {
@@ -1527,26 +1532,27 @@ p {
     flex: 1 1 0;
     min-width: 0;
     max-width: 300px;
-    padding: 7px 9px;
+    padding: 5px 9px;
     border-radius: 7px;
     background: rgba(255, 255, 255, 0.08);
     display: flex;
     flex-direction: column;
     align-items: stretch;
     justify-content: center;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .bar-widget-soccer-card > * + * {
-    margin-top: 3px;
+    margin-top: 2px;
 }
 
 .bar-widget-soccer-card-top {
     display: flex;
     align-items: center;
     justify-content: center;
+    flex: 0 0 auto;
     min-width: 0;
-    min-height: 17px;
+    min-height: 18px;
     width: 100%;
     overflow: visible;
 }
@@ -1557,23 +1563,26 @@ p {
 
 .bar-widget-soccer-card-date {
     flex: 0 0 auto;
+    display: block;
+    padding-bottom: 1px;
     color: #ffffff;
     font-size: 13px;
     font-weight: 700;
-    line-height: 1.18;
+    line-height: 1.22;
     white-space: nowrap;
 }
 
 .bar-widget-soccer-stage {
     flex: 0 1 auto;
+    display: block;
     min-width: 0;
-    padding: 2px 5px 3px;
+    padding: 2px 5px 4px;
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.13);
     color: rgba(255, 255, 255, 0.82);
     font-size: 10px;
     font-weight: 700;
-    line-height: 1.15;
+    line-height: 1.22;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1602,12 +1611,12 @@ p {
 }
 
 .bar-widget-soccer-team-card > * + * {
-    margin-top: 3px;
+    margin-top: 2px;
 }
 
 .bar-widget-soccer-team-visual {
-    width: 34px;
-    height: 34px;
+    width: 30px;
+    height: 30px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1616,8 +1625,8 @@ p {
 
 .bar-widget-soccer-team-badge {
     display: block;
-    max-width: 34px;
-    max-height: 34px;
+    max-width: 30px;
+    max-height: 30px;
     object-fit: contain;
 }
 
